@@ -14,7 +14,7 @@ params.dmau_genome = "$references_basepath/dmau/*.fasta"
 
 //? output paths
 // output dir
-params.outdir = "$baseDir/data/results"
+params.outdir = "$baseDir/data/results_mapping"
 
 //bowtie2 index
 params.dmel_index_prefix = "$baseDir/data/0_index/RNAseq/dmel"
@@ -38,7 +38,11 @@ process BOWTIE2_BUILD {
 }
 
 process BOWTIE2_ALIGN {
+    maxForks 1
+    memory '20 GB'
+
     tag "$fasta_file"
+    publishDir "$params.outdir"
 
     input:
     path fasta_file
@@ -53,13 +57,31 @@ process BOWTIE2_ALIGN {
     """
 }
 
+process SAM_FILES {
+
+
+    samtools view -@ ${params.max_cpus} -Sb $entry -o "${entry%.*}.bam"
+
+
+    samtools sort -@ ${params.max_cpus} -m 1G --output-fmt bam --output-fmt-option nthreads=${params.max_cpus} -T tempbam -o "${entry%.*}.sorted.bam" $entry
+
+
+    samtools index -@ ${params.max_cpus} "${entry%.*}.sorted.bam" -o "${entry%.*}.sorted.bam.bai"
+
+    samtools idxstats -@ ${params.max_cpus} "${entry%.*}.sorted.bam" &> "${entry%.*}.sorted.bam.txt"
+}
+
 workflow {
     if (!params.skipAlignment)
     {
         dmel_genome = file(params.dmel_genome)
         bowtie_index = BOWTIE2_BUILD(dmel_genome)
-        bowtie_index.view()
         dmel_reads = Channel.fromPath(params.dmel_reads)
         BOWTIE2_ALIGN(dmel_reads, bowtie_index)
+        // TODO Channel Sam Files from Process Output
+    } else {
+        // TODO SAM Files from Output Directory
     }
+
+    // TODO implement process SAM_FILES
 }
