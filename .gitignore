@@ -4,3 +4,4 @@ work/
 *.bt2
 .DS_Store
 *.bigwig
+*.fasta
