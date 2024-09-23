@@ -1,0 +1,3 @@
+Organism Scientific Name	Organism Common Name	Organism Qualifier	Taxonomy id	Assembly Name	Assembly Accession	Source	Annotation	Level	Contig N50	Size	Submission Date	Gene Count	BioProject	BioSample
+Drosophila mauritiana		sex: male, strain: mau12	7226	ASM438214v1	GCA_004382145.1	GenBank		Chromosome	22120385	152298302	2019-04-16		PRJNA383250	SAMN06827991
+Drosophila mauritiana		sex: male, strain: mau12	7226	ASM438214v1	GCF_004382145.1	RefSeq	NCBI Drosophila mauritiana Annotation Release 100	Chromosome	22120385	152298302	2019-04-16	16006	PRJNA383250	SAMN06827991

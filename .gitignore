@@ -1,0 +1,6 @@
+work/
+.nextflow/
+.nextflow.*
+*.bt2
+.DS_Store
+*.bigwig
