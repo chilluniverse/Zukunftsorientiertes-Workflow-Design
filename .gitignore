@@ -5,3 +5,6 @@ work/
 .DS_Store
 *.bigwig
 *.fasta
+*.sam
+*.bam
+*.bai
