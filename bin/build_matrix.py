@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 
 import argparse
+import ast
 from pathlib import Path
 import os
 import csv
 import sys
 
+#> CLI Argument Parser
 parser = argparse.ArgumentParser(description='Compile mapping results to matrix')
-parser.add_argument('--files', dest='files', nargs='+', help='Path of *.tsv files containing read count data')
+parser.add_argument('--files', dest='files', help='Path of *.tsv files containing read count data')
 parser.add_argument('--path', dest='path', default= "", help='Output Path')
 args = parser.parse_args()
 
+file_paths_str = args.files.strip('[]')
+file_paths = [path.strip() for path in file_paths_str.split(',')]
+
+#! METHODS
 
 def get_filename_and_extension(file_path):
     file = Path(file_path).name
@@ -26,7 +32,6 @@ def search_file(files):
         filename, file_extension = get_filename_and_extension(file)
         if file_extension=="sorted.bam.tsv":
             result_dict[filename] = file
-    
     return result_dict
 
 def read_tsv_to_dict(file_path):
@@ -101,7 +106,7 @@ def build_matrix(read_count_data, path):
 
 
 
-read_count_files = search_file(args.files)
+read_count_files = search_file(file_paths)
 
 read_count_data = get_file_values(read_count_files)
 
