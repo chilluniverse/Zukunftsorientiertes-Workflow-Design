@@ -8,3 +8,5 @@ work/
 *.sam
 *.bam
 *.bai
+*.bed
+data/results_mapping/
