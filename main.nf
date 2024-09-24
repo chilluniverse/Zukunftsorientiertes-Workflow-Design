@@ -1,10 +1,10 @@
 #!/usr/bin/env nextflow
-
+// ?
 //? input paths
 // fasta raw sequences
 reads_basepath = "$baseDir/data/1_fasta/RNAseq"
 params.reads = ""
-params.dmel_reads = "$reads_basepath/dmel/*.fasta"
+params.dmel_reads = "$reads_basepath/dmel/dmel_72h_A.fasta"
 params.dmau_reads = "$reads_basepath/dmau/*.fasta"
 
 // transcriptome reference files
@@ -20,6 +20,11 @@ params.outdir = "$baseDir/data/results_mapping"
 params.dmel_index_prefix = "$baseDir/data/0_index/RNAseq/dmel"
 params.dmau_index_prefix = "$baseDir/data/0_index/RNAseq/dmau"
 
+//!!!!!!!!!!!!!!!!!!!!!!!!
+//!     PROCESSES
+//!!!!!!!!!!!!!!!!!!!!!!!!
+
+//> Build Bowtie2 Index
 process BOWTIE2_BUILD {
     tag "$fasta"
     label 'process_high'
@@ -37,51 +42,73 @@ process BOWTIE2_BUILD {
     """
 }
 
+//> Align Sequence
 process BOWTIE2_ALIGN {
     maxForks 1
     memory '20 GB'
 
     tag "$fasta_file"
-    publishDir "$params.outdir"
 
     input:
     path fasta_file
-    path(index_dir)
+    path index_dir
 
     output:
-    path("aligned_${fasta_file.simpleName}.sam")
+    path "${fasta_file.simpleName}.sam"
 
     script:
     """
-    bowtie2 --very-sensitive-local -N 1 --threads ${params.max_cpus} -f -x ${index_dir}/index -U ${fasta_file} -S aligned_${fasta_file.simpleName}.sam
+    bowtie2 --very-sensitive-local -N 1 --threads ${params.max_cpus} -f -x ${index_dir}/index -U ${fasta_file} -S "${fasta_file.simpleName}.sam"
     """
 }
 
-process SAM_FILES {
+//> Convert SAM to BAM and Index
+process PROCESS_SAM {
+    maxForks 3
+    memory '10 GB'
+
+    tag "$sam_file"
+    publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
+
+    input:
+    path sam_file
 
 
-    samtools view -@ ${params.max_cpus} -Sb $entry -o "${entry%.*}.bam"
+    output:
+    path("${sam_file.simpleName}.sorted.bam")
+    path("${sam_file.simpleName}.sorted.bam.bai")
+    path("${sam_file.simpleName}.sorted.bam.tsv")   ,emit: read_count
+    path("${sam_file.simpleName}.bam.stats")
 
+    """
+    mkdir samtools
 
-    samtools sort -@ ${params.max_cpus} -m 1G --output-fmt bam --output-fmt-option nthreads=${params.max_cpus} -T tempbam -o "${entry%.*}.sorted.bam" $entry
+    samtools view       -@ ${params.max_cpus} -Sb ${sam_file.simpleName}.sam -o ${sam_file.simpleName}.bam
 
+    samtools sort       -@ ${params.max_cpus} -m 1G --output-fmt bam --output-fmt-option nthreads=${params.max_cpus} -o ${sam_file.simpleName}.sorted.bam "${sam_file.simpleName}.bam"
 
-    samtools index -@ ${params.max_cpus} "${entry%.*}.sorted.bam" -o "${entry%.*}.sorted.bam.bai"
+    samtools index      -@ ${params.max_cpus} ${sam_file.simpleName}.sorted.bam -o ${sam_file.simpleName}.sorted.bam.bai
 
-    samtools idxstats -@ ${params.max_cpus} "${entry%.*}.sorted.bam" &> "${entry%.*}.sorted.bam.txt"
+    samtools idxstats   -@ ${params.max_cpus} ${sam_file.simpleName}.sorted.bam &> ${sam_file.simpleName}.sorted.bam.tsv
+
+    samtools stats      -@ ${params.max_cpus} ${sam_file.simpleName}.bam &> ${sam_file.simpleName}.bam.stats
+    """
 }
 
+//!!!!!!!!!!!!!!!!!!!!!!!!
+//!     WORKFLOW
+//!!!!!!!!!!!!!!!!!!!!!!!!
+
 workflow {
-    if (!params.skipAlignment)
+    if (!params.skipAlign)
     {
         dmel_genome = file(params.dmel_genome)
         bowtie_index = BOWTIE2_BUILD(dmel_genome)
-        dmel_reads = Channel.fromPath(params.dmel_reads)
-        BOWTIE2_ALIGN(dmel_reads, bowtie_index)
-        // TODO Channel Sam Files from Process Output
-    } else {
-        // TODO SAM Files from Output Directory
-    }
 
-    // TODO implement process SAM_FILES
+        dmel_reads = Channel.fromPath(params.dmel_reads)
+        bowtie_output = BOWTIE2_ALIGN(dmel_reads, bowtie_index)
+
+        sorted_bam_files = PROCESS_SAM(bowtie_output) //Output: view([DataflowStream[?], DataflowStream[?], DataflowStream[?], DataflowStream[?]])
+        
+    }
 }
