@@ -92,6 +92,23 @@ process PROCESS_SAM {
     """
 }
 
+//> Build Matrix from read counts
+process BUILD_MATRIX {
+
+    publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
+
+    input:
+    val files
+
+    output:
+    path "countData.tsv"
+
+    script:
+    """
+    build_matrix.py --files $files
+    """
+}
+
 //!!!!!!!!!!!!!!!!!!!!!!!!
 //!     WORKFLOW
 //!!!!!!!!!!!!!!!!!!!!!!!!
@@ -108,7 +125,10 @@ workflow {
         read_count = PROCESS_SAM(bowtie_output).read_count 
                                                | collect(flat: false)
                                                | view
+    } else 
+    {
+        read_count = Channel.fromPath("${params.outdir}/*.sorted.bam.tsv").collect(flat: false)
     }
 
-
+    BUILD_MATRIX(read_count)
 }
