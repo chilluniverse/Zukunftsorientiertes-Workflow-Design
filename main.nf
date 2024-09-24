@@ -105,7 +105,7 @@ process BUILD_MATRIX {
 
     script:
     """
-    build_matrix.py --files $files
+    build_matrix.py --files "$files"
     """
 }
 
