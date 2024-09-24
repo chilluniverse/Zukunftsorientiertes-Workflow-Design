@@ -1,16 +1,16 @@
 #!/usr/bin/env nextflow
 // ?
 //? input paths
-// fasta raw sequences
-reads_basepath = "$baseDir/data/1_fasta/RNAseq"
-params.reads = ""
-params.dmel_reads = "$reads_basepath/dmel/dmel_72h_A.fasta"
-params.dmau_reads = "$reads_basepath/dmau/*.fasta"
-
 // transcriptome reference files
 references_basepath = "$baseDir/data/0_references/RNAseq" 
 params.dmel_genome = "$references_basepath/dmel/*.fasta"
 params.dmau_genome = "$references_basepath/dmau/*.fasta"
+
+// fasta raw sequences
+reads_basepath = "$baseDir/data/1_fasta/RNAseq"
+params.reads = ""
+params.dmel_reads = "$reads_basepath/dmel/*.fasta"
+params.dmau_reads = "$reads_basepath/dmau/*.fasta"
 
 //? output paths
 // output dir
@@ -64,15 +64,12 @@ process BOWTIE2_ALIGN {
 
 //> Convert SAM to BAM and Index
 process PROCESS_SAM {
-    maxForks 3
-    memory '10 GB'
 
     tag "$sam_file"
     publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
 
     input:
     path sam_file
-
 
     output:
     path("${sam_file.simpleName}.sorted.bam")
@@ -108,7 +105,10 @@ workflow {
         dmel_reads = Channel.fromPath(params.dmel_reads)
         bowtie_output = BOWTIE2_ALIGN(dmel_reads, bowtie_index)
 
-        sorted_bam_files = PROCESS_SAM(bowtie_output) //Output: view([DataflowStream[?], DataflowStream[?], DataflowStream[?], DataflowStream[?]])
-        
+        read_count = PROCESS_SAM(bowtie_output).read_count 
+                                               | collect(flat: false)
+                                               | view
     }
+
+
 }
