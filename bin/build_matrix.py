@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 import argparse
 from pathlib import Path
@@ -6,7 +7,8 @@ import csv
 import sys
 
 parser = argparse.ArgumentParser(description='Compile mapping results to matrix')
-parser.add_argument('--path', dest='path', help='Path of folder and/or subfolder containing SRA Runs')
+parser.add_argument('--files', dest='files', nargs='+', help='Path of *.tsv files containing read count data')
+parser.add_argument('--path', dest='path', default= "", help='Output Path')
 args = parser.parse_args()
 
 
@@ -16,14 +18,14 @@ def get_filename_and_extension(file_path):
     
     return filename, file_extension
 
-def search_file(folder_path):
+#! 1 - DONE
+def search_file(files):
     result_dict = {}
     
-    for root, files in os.walk(folder_path):
-        for file in files:
-            filename, file_extension = get_filename_and_extension(file)
-            if file_extension=="sorted.bam.txt":
-                result_dict[filename] = os.path.join(root, file)
+    for file in files:
+        filename, file_extension = get_filename_and_extension(file)
+        if file_extension=="sorted.bam.tsv":
+            result_dict[filename] = file
     
     return result_dict
 
@@ -38,19 +40,20 @@ def read_tsv_to_dict(file_path):
             
     return result_dict
 
-def get_run_values(run_paths):
+#! 2 
+def get_file_values(read_count_files):
     result_dict = {}
-    for run in run_paths:
-        result_dict[run] = read_tsv_to_dict(run_paths[run])
+    for file in read_count_files:
+        result_dict[file] = read_tsv_to_dict(read_count_files[file])
     return result_dict
         
-def combine_counts(run_values):
+def combine_counts(read_count_data):
     result_dict = {}
-    for run_name in run_values:
-        run = run_values[run_name]
-        for gen in run:
+    for file_name in read_count_data:
+        file = read_count_data[file_name]
+        for gen in file:
             # gen ist key
-            tmp_values = run[gen]
+            tmp_values = file[gen]
             if result_dict.get(gen) != None:
                 tmp_list = result_dict[gen]
             else:
@@ -60,28 +63,29 @@ def combine_counts(run_values):
     
     return result_dict
 
-def build_matrix(run_values, path):
+#! 3
+def build_matrix(read_count_data, path):
     
     out_file_name = 'countData'
     header = ""
     
     tmp_length = -1
        
-    for run in run_values:
-        run_length = len(run_values[run].values())
-        if tmp_length == -1: tmp_length = run_length
-        elif tmp_length != run_length: 
-            print("runs where not mapped to same genome! (mismatch of gene count)")
+    for file in read_count_data:
+        file_length = len(read_count_data[file].values())
+        if tmp_length == -1: tmp_length = file_length
+        elif tmp_length != file_length: 
+            print("files where not mapped to same genome! (mismatch of gene count)")
             sys.exit(1)
             
-        # out_file_name = out_file_name + '_' + str(run)
-        header = header + "\t" + str(run)
+        # out_file_name = out_file_name + '_' + str(file)
+        header = header + "\t" + str(file)
     
-    rows = combine_counts(run_values)
+    rows = combine_counts(read_count_data)
     
     print ('writing "'+out_file_name+'.tsv"')
 
-    with open(path+"/"+out_file_name+".tsv", 'w') as file:        
+    with open(path+out_file_name+".tsv", 'w') as file:        
 
         file.write(header+'\n')
         
@@ -97,7 +101,8 @@ def build_matrix(run_values, path):
 
 
 
-run_paths = search_file(args.path)
-run_values = get_run_values(run_paths)
+read_count_files = search_file(args.files)
 
-build_matrix(run_values,args.path)
+read_count_data = get_file_values(read_count_files)
+
+build_matrix(read_count_data,args.path)
