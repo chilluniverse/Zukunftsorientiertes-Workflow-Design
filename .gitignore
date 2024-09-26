@@ -10,3 +10,4 @@ work/
 *.bai
 *.bed
 data/results_mapping/
+data/results_mapping(strain specific)/
