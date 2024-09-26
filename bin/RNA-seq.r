@@ -1,14 +1,5 @@
 #!/usr/bin/env Rscript
 
-#- Install Packages
-# if (!require("BiocManager", quietly = TRUE))
-#     install.packages("BiocManager")
-
-# BiocManager::install("DESeq2")
-# BiocManager::install("coseq")
-# BiocManager::install("apeglm")
-# BiocManager::install("HTSFilter")
-
 #- Import Libraris
 library(DESeq2)
 library(ggplot2)
@@ -18,25 +9,16 @@ library(Cairo)
 #- parse arguments
 args <- commandArgs(trailingOnly = TRUE)
 
-if (length(args) < 2) {
-  stop("Es müssen mindestens 2 Argumente übergeben werden: input_file und parameter.")
-}
-
 #- Import Data
 countData_all <- read.csv(args[1], header = TRUE, sep = "\t")
-#head(countData_all)
 
 metaData_all <- read.csv(args[2], header = TRUE, sep = ",")
-
-#head(metaData_all)
 
 metaData_split  <- split(metaData_all, metaData_all$Time_point)
 
 metaData_72h <- metaData_split[["A_72h"]]
 metaData_96h <- metaData_split[["B_96h"]]
 metaData_120h <- metaData_split[["C_120h"]]
-
-#head(metaData_72h)
 
 ss_72h <- c("X","dmel_72h_A", "dmel_72h_B", "dmel_72h_C", "dmau_72h_A", "dmau_72h_B", "dmau_72h_C")
 countData_72h <- countData_all[ ,ss_72h]
@@ -77,28 +59,28 @@ res_120h <- results(dds_120h)
 # 72h
 # total number of DEGs
 upreg_72h_total <- subset(res_72h, padj < 0.05)
-write.csv(upreg_72h_total , file = "DEG/upreg_72h_total.csv")
+write.csv(upreg_72h_total , file = "results/upregulated_genes/upreg_72h_total.csv")
 # upregulated in D. mauritiana
 upreg_72h_dmau <- subset(res_72h, padj < 0.05 & log2FoldChange > 0)
-write.csv(upreg_72h_dmau , file = "DEG/upreg_72h_dmau.csv")
+write.csv(upreg_72h_dmau , file = "results/upregulated_genes/upreg_72h_dmau.csv")
 
 
 # 96h
 # total number of DEGs
 upreg_96h_total <- subset(res_96h, padj < 0.05)
-write.csv(upreg_96h_total , file = "DEG/upreg_96h_total.csv")
+write.csv(upreg_96h_total , file = "results/upregulated_genes/upreg_96h_total.csv")
 # upregulated in D. mauritiana
 upreg_96h_dmau <- subset(res_96h, padj < 0.05 & log2FoldChange > 0)
-write.csv(upreg_96h_dmau , file = "DEG/upreg_96h_dmau.csv")
+write.csv(upreg_96h_dmau , file = "results/upregulated_genes/upreg_96h_dmau.csv")
 
 # 120h
 # total number of DEGs
 upreg_120h_total <- subset(res_120h, padj < 0.05)
-write.csv(upreg_120h_total , file = "DEG/upreg_120h_total.csv")
+write.csv(upreg_120h_total , file = "results/upregulated_genes/upreg_120h_total.csv")
 
 # upregulated in D. mauritiana
 upreg_120h_dmau <- subset(res_120h, padj < 0.05 & log2FoldChange > 0)
-write.csv(upreg_120h_dmau , file = "DEG/upreg_120h_dmau.csv")
+write.csv(upreg_120h_dmau , file = "results/upregulated_genes/upreg_120h_dmau.csv")
 
 
 
@@ -110,32 +92,28 @@ dds_all_filtered_HTS <- HTSFilter(dds_all, plot = TRUE, normalization = "DESeq")
 dds_all_filtered <- dds_all_filtered_HTS$filteredData
 
 filtered_countMatrix <- counts(dds_all_filtered)
-write.csv(filtered_countMatrix, file = "DEG/filtered_countMatrix.csv")
+write.csv(filtered_countMatrix, file = "results/filtered_countMatrix.csv")
 
 filtered_countMatrix_collapsed <- counts(collapseReplicates(dds_all_filtered, 
                                                             dds_all_filtered$Time_point, 
                                                             dds_all_filtered$Organism), normalized = TRUE)
 
 #! floor() -> round off collapsed values
-write.csv(floor(filtered_countMatrix_collapsed), file = "DEG/filtered_countMatrix_collapsed.csv")
+write.csv(floor(filtered_countMatrix_collapsed), file = "results/filtered_countMatrix_collapsed.csv")
 
 
 
 #- generate PCA Plot
 rld <- rlog(dds_all, blind = FALSE)
 PCA_plot <- plotPCA(rld, intgroup=c("Organism", "Time_point"), ntop = 500)
-Cairo::Cairo(file="DEG/PCA.png",
-      type="svg", 
-      width=15, 
-      height=10,
+Cairo::Cairo(file="results/plots/PCA.png",
+      type="png", 
+      width=20, 
+      height=15,
       units="cm",
       dpi=300)
 PCA_plot
 invisible(dev.off)
-
-
-#* Check available coefs before continuing to next step
-# resultsNames(dds_all)
 
 #? pairwise differential expression analysis between the two species 
 #? at each time point using the apeglm option as shrinkage estimator
@@ -161,8 +139,8 @@ sigGenes_all_120  <- subset(resLFC_all_120, log2FoldChange < 0 & padj < 0.05)
 sigGenes_ids_all_96  <- rownames(sigGenes_all_96)
 sigGenes_ids_all_120  <- rownames(sigGenes_all_120)
 
-write.csv(sigGenes_ids_all_96, file = "DEG/sigGenes_ids_all_downreg_96.csv")
-write.csv(sigGenes_ids_all_120, file = "DEG/sigGenes_ids_all_downreg_120.csv")
+write.csv(sigGenes_ids_all_96, file = "results/significantGenes/sigGenes_ids_all_downreg_96.csv")
+write.csv(sigGenes_ids_all_120, file = "results/significantGenes/sigGenes_ids_all_downreg_120.csv")
 
 #- combine the read counts that were significantly differentially expressed
 #? (log2FC > 0 | log2FC < 0 and padj < 0.05)
@@ -187,10 +165,10 @@ expGenes_ids_72h  <- rownames(expGenes_72h)
 expGenes_ids_96h  <- rownames(expGenes_96h)
 expGenes_ids_120h <- rownames(expGenes_120h)
 
-write.csv(sigGenes_ids_all, file = "DEG/sigGenes_ids_all.csv")
-write.csv(sigGenes_ids_72h, file = "DEG/sigGenes_ids_72h.csv")
-write.csv(sigGenes_ids_96h, file = "DEG/sigGenes_ids_96h.csv")
-write.csv(sigGenes_ids_120h, file = "DEG/sigGenes_ids_120h.csv")
+write.csv(sigGenes_ids_all, file = "results/significantGenes/sigGenes_ids_all.csv")
+write.csv(sigGenes_ids_72h, file = "results/significantGenes/sigGenes_ids_72h.csv")
+write.csv(sigGenes_ids_96h, file = "results/significantGenes/sigGenes_ids_96h.csv")
+write.csv(sigGenes_ids_120h, file = "results/significantGenes/sigGenes_ids_120h.csv")
 
 #! 'dds_sigGenes' <= dds gets reduced to significantly differentially expressed genes
 dds_sigGenes_all  <- dds_all[sigGenes_ids_all, ]
@@ -205,62 +183,28 @@ coseq_sigGenes_all <- coseq::coseq(dds_sigGenes_all, K = 2:25,
                                transformation = "arcsin",
                                norm = "TMM", model = "Normal", parallel = TRUE, seed = 2602112)
 
-sink(file = "DEG/coseq-summary_all.txt")
+sink(file = "results/clustering/coseq-summary_all.txt")
 summary(coseq_sigGenes_all)
 sink(file = NULL)
 
 #- Export clusters and profiles
 #? clusters ? "FBgnXXXXXXX","#cluster"
 clusters_all <- clusters(coseq_sigGenes_all)
-write.csv(clusters_all, file = "DEG/coseq-clusters_all.csv")
+write.csv(clusters_all, file = "results/clustering/coseq-clusters_all.csv")
 # profiles ? table with avg. expression profiles
 profiles_all <- profiles(coseq_sigGenes_all)
-write.csv(profiles_all, file = "DEG/coseq-profiles_all.csv")
+write.csv(profiles_all, file = "results/clustering/coseq-profiles_all.csv")
 
 
 #- plotting time <3
-#conds_all <- dds_all$Time_point
 conds_all <- dds_sigGenes_all$Time_point
 print(conds_all)
 profiles_plot_all <- plot(coseq_sigGenes_all, graphs = "profiles", conds = conds_all, collapse_reps = "average", order = TRUE)
-#profiles_plot_all
-Cairo::Cairo(file="DEG/coseq_profile_plot.png",
-      type="svg", 
-      width=17, 
-      height=10,
+Cairo::Cairo(file="results/plots/clustering_plot.png",
+      type="png", 
+      width=20, 
+      height=15,
       units="cm",
       dpi=300)
 profiles_plot_all
 invisible(dev.off) # to close the file
-
-# #* plot OreR profiles only
-# #? zero all values of TAM
-# profiles_OreR_all <- profiles_all[1:9]
-# profiles_OreR_all[["dmau_120h_A"]] <- 0
-# profiles_OreR_all[["dmau_120h_B"]] <- 0
-# profiles_OreR_all[["dmau_120h_C"]] <- 0
-# profiles_OreR_all[["dmau_72h_A"]] <- 0
-# profiles_OreR_all[["dmau_72h_B"]] <- 0
-# profiles_OreR_all[["dmau_72h_C"]] <- 0
-# profiles_OreR_all[["dmau_96h_A"]] <- 0
-# profiles_OreR_all[["dmau_96h_B"]] <- 0
-# profiles_OreR_all[["dmau_96h_C"]] <- 0
-
-# profiles_plot_OreR_all <- plot(coseq_sigGenes_all, y_profiles = profiles_OreR_all, graphs = "profiles", conds = conds_all, collapse_reps = "average", order = TRUE)
-# profiles_plot_OreR_all
-
-# #* plot TAM profiles only
-# #? zero all values of OreR
-# profiles_TAM_all <- profiles_all[10:18]
-# profiles_TAM_all[["dmel_120h_A"]] <- 0
-# profiles_TAM_all[["dmel_120h_B"]] <- 0
-# profiles_TAM_all[["dmel_120h_C"]] <- 0
-# profiles_TAM_all[["dmel_72h_A"]] <- 0
-# profiles_TAM_all[["dmel_72h_B"]] <- 0
-# profiles_TAM_all[["dmel_72h_C"]] <- 0
-# profiles_TAM_all[["dmel_96h_A"]] <- 0
-# profiles_TAM_all[["dmel_96h_B"]] <- 0
-# profiles_TAM_all[["dmel_96h_C"]] <- 0
-
-# profiles_plot_TAM_all <- plot(coseq_sigGenes_all, y_profiles = profiles_TAM_all, graphs = "profiles", conds = conds_all, collapse_reps = "average", order = TRUE)
-# profiles_plot_TAM_all
