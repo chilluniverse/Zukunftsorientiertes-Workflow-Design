@@ -1,20 +1,9 @@
 #!/usr/bin/env nextflow
-// ?
-//? input paths
-// transcriptome reference files
-references_basepath = "$baseDir/data/0_references/RNAseq" 
-params.dmel_genome = "$references_basepath/dmel/*.fasta"
-params.dmau_genome = "$references_basepath/dmau/*.fasta"
 
-// fasta raw sequences
-reads_basepath = "$baseDir/data/1_fasta/RNAseq"
-params.dmel_reads = "$reads_basepath/dmel/*.fasta"
-params.dmau_reads = "$reads_basepath/dmau/*.fasta"
-params.reads = "$reads_basepath/**/*.fasta"
-
-//? output paths
-// output dir
-params.outdir = "$baseDir/data/results_mapping"
+//? path definitions
+params.genome = "$baseDir/data/references/RNAseq/dmel/*.fasta"    // transcriptome reference files
+params.reads = "$baseDir/data/fasta/RNAseq/**/*.fasta"            // fasta raw sequences
+params.outdir = "$baseDir/results/RNAseq"                                  // output directory
 
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -69,7 +58,7 @@ process PROCESS_SAM {
     maxErrors 5
 
     tag "$sam_file"
-    publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
+    publishDir "$params.outdir/BAM", mode: 'copy', overwrite: 'true', pattern: "{*.tsv,*.stats}"
 
     input:
     path sam_file
@@ -98,7 +87,7 @@ process PROCESS_SAM {
 //> Build Matrix from read counts
 process BUILD_MATRIX {
 
-    publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
+    publishDir "$params.outdir/DEG", mode: 'copy', overwrite: 'true'
 
     input:
     val files
@@ -114,7 +103,7 @@ process BUILD_MATRIX {
 
 //> Generate Metadata file
 process GENERATE_METADATA {
-    publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
+    publishDir "$params.outdir/DEG", mode: 'copy', overwrite: 'true'
 
     input:
     path sam_files
@@ -160,12 +149,30 @@ process DEG {
     path metaData
 
     output:
-    path ('DEG')
+    path ('results')
+    path ('results/coseq-clusters_all.csv') ,emit: cluster_all
 
     script:
     """
-    mkdir DEG
+    mkdir -p results{plots,upregulated_genes,significantGenes,clustering}
     RNA-seq.r $countData $metaData
+    """
+}
+
+process EXTRACT_CLUSTER {
+    publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
+
+    input:
+    path cluster_data
+
+    output:
+    path('cluster') ,emit: cluster
+    path 'cluster.job'
+
+    script:
+    """
+    mkdir cluster
+    coseq_go.py --clusters $cluster_data
     """
 }
 
@@ -174,48 +181,29 @@ process DEG {
 //!!!!!!!!!!!!!!!!!!!!!!!!
 
 workflow {
-    if (params.align)
-    {
-        if (params.dmel)
-        {
-            genome = params.dmel_genome
-            reads = params.dmel_reads
-        }
-        else if(params.dmau)
-        {
-            genome = params.dmau_genome
-            reads = params.dmau_reads
-        }
-        else
-        {
-            genome = params.dmel_genome
-            reads = params.reads
-        }
-        genome = file(genome)
-        bowtie_index = BOWTIE2_BUILD(genome)
-
-        reads = Channel.fromPath(reads)
-        BOWTIE2_ALIGN(reads, bowtie_index).sam
+    //> Alignment / Mapping
+    if (params.align) {
+        genome = file(params.genome)                    // get transcriptome file from path
+        bowtie_index = BOWTIE2_BUILD(genome)            // build bowtie index from transcriptome
+        reads = Channel.fromPath(params.reads)          // get reads from path
+        BOWTIE2_ALIGN(reads, bowtie_index).sam          // Alignment
                                         | collect
                                         | flatten
                                         | collate( 1 )
                                         | set {bowtie_output}
 
         read_count = PROCESS_SAM(bowtie_output).read_count 
-                                               | collect(flat: false)
-    } 
-    else 
-    {
-        read_count = Channel.fromPath("${params.outdir}/*.sorted.bam.tsv").collect(flat: false)
+                                               | collect(flat: false) // Process SAM Files
+    } else {
+        // if alignment is skipped, get read count data from results-path
+        read_count = Channel.fromPath("${params.outdir}/BAM/*.sorted.bam.tsv").collect(flat: false) 
     }
 
-    if (params.DEG)
-    {   
-        countData = BUILD_MATRIX(read_count)
-
-        metaData = GENERATE_METADATA(read_count)
-
-        DEG(countData, metaData)
+    //> DEG Analysis
+    if (params.DEG) {   
+        countData = BUILD_MATRIX(read_count)                    // Build Count Matrix for DEG-Analysis
+        metaData = GENERATE_METADATA(read_count)                // Build Metadata File for for DEG-Analysis
+        cluster_data = DEG(countData, metaData).cluster_all     // Execute DEG Analysis
+        EXTRACT_CLUSTER(cluster_data)                           // Write each sub cluster from DEG/coseq-clustering-analsys to unique file and generate .job file for metascape
     }
-    
 }
