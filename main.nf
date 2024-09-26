@@ -8,21 +8,18 @@ params.dmau_genome = "$references_basepath/dmau/*.fasta"
 
 // fasta raw sequences
 reads_basepath = "$baseDir/data/1_fasta/RNAseq"
-params.reads = ""
 params.dmel_reads = "$reads_basepath/dmel/*.fasta"
 params.dmau_reads = "$reads_basepath/dmau/*.fasta"
+params.reads = "$reads_basepath/**/*.fasta"
 
 //? output paths
 // output dir
 params.outdir = "$baseDir/data/results_mapping"
 
-//bowtie2 index
-params.dmel_index_prefix = "$baseDir/data/0_index/RNAseq/dmel"
-params.dmau_index_prefix = "$baseDir/data/0_index/RNAseq/dmau"
 
-//!!!!!!!!!!!!!!!!!!!!!!!!
-//!     PROCESSES
-//!!!!!!!!!!!!!!!!!!!!!!!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//!!!            PROCESSES            !!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //> Build Bowtie2 Index
 process BOWTIE2_BUILD {
@@ -45,7 +42,9 @@ process BOWTIE2_BUILD {
 //> Align Sequence
 process BOWTIE2_ALIGN {
     maxForks 1
-    memory '20 GB'
+    memory '30 GB'
+    errorStrategy 'retry'
+    maxErrors 5
 
     tag "$fasta_file"
 
@@ -54,7 +53,7 @@ process BOWTIE2_ALIGN {
     path index_dir
 
     output:
-    path "${fasta_file.simpleName}.sam"
+    path "${fasta_file.simpleName}.sam", emit: sam
 
     script:
     """
@@ -64,6 +63,10 @@ process BOWTIE2_ALIGN {
 
 //> Convert SAM to BAM and Index
 process PROCESS_SAM {
+    maxForks 1
+    memory '30 GB'
+    errorStrategy 'retry'
+    maxErrors 5
 
     tag "$sam_file"
     publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
@@ -82,7 +85,7 @@ process PROCESS_SAM {
 
     samtools view       -@ ${params.max_cpus} -Sb ${sam_file.simpleName}.sam -o ${sam_file.simpleName}.bam
 
-    samtools sort       -@ ${params.max_cpus} -m 1G --output-fmt bam --output-fmt-option nthreads=${params.max_cpus} -o ${sam_file.simpleName}.sorted.bam "${sam_file.simpleName}.bam"
+    samtools sort       -@ ${params.max_cpus} -m 1300M --output-fmt bam --output-fmt-option nthreads=${params.max_cpus} -o ${sam_file.simpleName}.sorted.bam "${sam_file.simpleName}.bam"
 
     samtools index      -@ ${params.max_cpus} ${sam_file.simpleName}.sorted.bam -o ${sam_file.simpleName}.sorted.bam.bai
 
@@ -105,7 +108,64 @@ process BUILD_MATRIX {
 
     script:
     """
-    build_matrix.py --files "$files"
+    build_matrix.py --files "$files" --name "countData"
+    """
+}
+
+//> Generate Metadata file
+process GENERATE_METADATA {
+    publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
+
+    input:
+    path sam_files
+
+    output:
+    path 'metadata.csv'
+
+    script:
+    """
+    echo "Run,Organism,Time_point" > metadata.csv
+    for file in ${sam_files}; do
+        filename=\$(basename "\$file" .sorted.bam.tsv)
+        organism=\$(echo \$filename | cut -d'_' -f1)
+        time=\$(echo \$filename | cut -d'_' -f2)
+        sample=\$(echo \$filename | cut -d'_' -f3)
+
+        # Map the time to the correct letter
+        case \$time in
+            72h)
+                letter="A"
+                ;;
+            96h)
+                letter="B"
+                ;;
+            120h)
+                letter="C"
+                ;;
+            *)
+                letter="Unknown"
+                ;;
+        esac
+
+        echo "\${filename},\${organism},\${letter}_\${time}" >> metadata.csv
+    done
+    """
+}
+
+process DEG {
+    publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
+
+    input:
+    path countData
+    path metaData
+
+    output:
+    path ('DEG')
+
+    script:
+    """
+    mkdir DEG
+    RNA-seq.r $countData $metaData
     """
 }
 
@@ -114,21 +174,48 @@ process BUILD_MATRIX {
 //!!!!!!!!!!!!!!!!!!!!!!!!
 
 workflow {
-    if (!params.skipAlign)
+    if (params.align)
     {
-        dmel_genome = file(params.dmel_genome)
-        bowtie_index = BOWTIE2_BUILD(dmel_genome)
+        if (params.dmel)
+        {
+            genome = params.dmel_genome
+            reads = params.dmel_reads
+        }
+        else if(params.dmau)
+        {
+            genome = params.dmau_genome
+            reads = params.dmau_reads
+        }
+        else
+        {
+            genome = params.dmel_genome
+            reads = params.reads
+        }
+        genome = file(genome)
+        bowtie_index = BOWTIE2_BUILD(genome)
 
-        dmel_reads = Channel.fromPath(params.dmel_reads)
-        bowtie_output = BOWTIE2_ALIGN(dmel_reads, bowtie_index)
+        reads = Channel.fromPath(reads)
+        BOWTIE2_ALIGN(reads, bowtie_index).sam
+                                        | collect
+                                        | flatten
+                                        | collate( 1 )
+                                        | set {bowtie_output}
 
         read_count = PROCESS_SAM(bowtie_output).read_count 
                                                | collect(flat: false)
-                                               | view
-    } else 
+    } 
+    else 
     {
         read_count = Channel.fromPath("${params.outdir}/*.sorted.bam.tsv").collect(flat: false)
     }
 
-    BUILD_MATRIX(read_count)
+    if (params.DEG)
+    {   
+        countData = BUILD_MATRIX(read_count)
+
+        metaData = GENERATE_METADATA(read_count)
+
+        DEG(countData, metaData)
+    }
+    
 }
