@@ -5,7 +5,6 @@ import argparse
 from pathlib import Path
 import os
 import csv
-import sys
 
 #- CLI Argument Parser
 parser = argparse.ArgumentParser(description='Compile mapping results to matrix')
@@ -34,13 +33,13 @@ def get_filename_and_extension(file_path):
 # @inputs:       files = [/path/to/file1, /path/to/file2]
 # @output: result_dict = {'filename':'/path/to/file1'}
 def search_file(files):
-    result_dict = {}                                                    #? init dictionary that will be returned
+    result_dict = {}
     
-    for file in files:                                                  #? iteration over all filepaths listed in input array
-        filename, file_extension = get_filename_and_extension(file)         #? call function get_filename_and_extension on current filepath
-        if file_extension=="sorted.bam.tsv":                                #? if file extions matches desired
-            result_dict[filename] = file                                        #? add file to dictionary; key: filename, value: filepath
-    return result_dict                                                  #? return results
+    for file in files:
+        filename, file_extension = get_filename_and_extension(file)
+        if file_extension=="sorted.bam.tsv":
+            result_dict[filename] = file
+    return result_dict
 
 #* read tsv file and write to a dictionary
 #? helper function used in function 'get_file_values()'
@@ -64,7 +63,7 @@ def get_file_values(read_count_files):
 
     return result_dict
 
-#* 
+#* put data in a single data structure
 def combine_counts(read_count_data):
     
     #? get all genes / gene-names
@@ -79,35 +78,18 @@ def combine_counts(read_count_data):
     
     result_dict = {}
     for gen in all_genes:
-        if result_dict.get(gen) != None:   # Wenn es schon einen Daten im result_dict zu diesem gen gibt
-                tmp_list = result_dict[gen]     # Dann erstelle die Liste tmp_list mit der Liste der Anzahl von jedem gen aus result_dict
-        else: tmp_list = []                # Sonst erstelle tmp_list als leere Liste
+        if result_dict.get(gen) != None:   
+                tmp_list = result_dict[gen]
+        else: tmp_list = []
         
         for run in read_count_data:
-            run_data = read_count_data[run] # get data from run: 'XM_033295125.1': ['2461']
+            run_data = read_count_data[run]
             
             if gen in run_data: 
-                #print(run+ "\t" + gen + ":\t" + str(run_data[gen]))
                 tmp_list.append(run_data[gen][0])
             else: tmp_list.append('0')
         result_dict[gen] = tmp_list
 
-
-    # for run in read_count_data:
-    #     run_data = read_count_data[run] # get data from run: 'XM_033295125.1': ['2461']
-
-    #     for gen in all_genes:
-    #         if result_dict.get(gen) != None:   # Wenn es schon einen Daten im result_dict zu diesem gen gibt
-    #             tmp_list = result_dict[gen]     # Dann erstelle die Liste tmp_list mit der Liste der Anzahl von jedem gen aus result_dict
-    #         else: tmp_list = []                # Sonst erstelle tmp_list als leere Liste
-        
-    #         #! gene IS IN run
-    #         if gen in run_data: tmp_list.append(run_data[gen])
-    #         #! gene is NOT in run
-    #         else: tmp_list.append('0')
-    #         result_dict[gen] = tmp_list
-    
-    #print(result_dict)
     return result_dict
 
 #- 3. Build the Matrix and generate output file
@@ -116,38 +98,24 @@ def combine_counts(read_count_data):
 # @          out_file_name = 'filename'
 # @output: 
 def build_matrix(read_count_data, path, out_file_name):
-    
-    header = ""                                                         #? initialize header line of output
-    
-    # tmp_length = -1                                                     
-
     #? write header "\tRUN\t\RUN..."
-    for run in read_count_data:                                        #? iterate over all files (key) in input dictionary
-        # run_length = len(read_count_data[run].values())                   #? get length of file aka. how many genes are contained in file
-        # if tmp_length == -1: tmp_length = run_length                       #? if number of genes mismatches accross inputed files
-        #elif tmp_length != run_length:                                         #? throw error and exit script
-        #    print("files where not mapped to same genome! (mismatch of gene count)")
-        #    sys.exit(1)
-            
-        ## out_file_name = out_file_name + '_' + str(file)
-        header = header + "\t" + str(run)                              #? add run name to header line with a tab delimiter
-    
-    rows = combine_counts(read_count_data)                              #? combine all rows from all files
-    
-    print ('writing "'+out_file_name+'.tsv"')
+    header = ""
+    for run in read_count_data: header = header + "\t" + str(run)
 
-    with open(path+out_file_name+".tsv", 'w') as file:                  #? write 
+    #? combine all rows from all files
+    rows = combine_counts(read_count_data)                              
+
+    with open(path+out_file_name+".tsv", 'w') as file:
 
         file.write(header+'\n')
         
         for run in rows:
-            tmp_row = run                                                       
+            tmp_row = run
             values = rows[run]
             for item in values:
-                tmp_row = tmp_row + '\t' + item             
+                tmp_row = tmp_row + '\t' + item
             file.write(tmp_row+'\n')
-            
-    print ("finished ;-)")
+
     return
 
 
