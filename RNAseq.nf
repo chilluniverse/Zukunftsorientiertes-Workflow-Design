@@ -3,7 +3,7 @@
 //? path definitions
 params.genome = "$baseDir/data/references/RNAseq/dmel/*.fasta"    // transcriptome reference files
 params.reads = "$baseDir/data/fasta/RNAseq/**/*.fasta"            // fasta raw sequences
-params.outdir = "$baseDir/results/RNAseq"                                  // output directory
+params.outdir = "$baseDir/results/RNAseq"                         // output directory
 
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
