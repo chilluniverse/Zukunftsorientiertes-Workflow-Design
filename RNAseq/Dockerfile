@@ -1,13 +1,6 @@
 # Basis-Image: Verwende ein Ubuntu-Image
-FROM ubuntu:20.04
+FROM continuumio/anaconda3:2024.06-1
 
-# Maintainer-Information
-LABEL maintainer="dein_name@beispiel.com"
-
-# Umgebungsvariablen für non-interactive Installation
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Update und Installation der Abhängigkeiten
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
@@ -34,6 +27,11 @@ RUN apt-get update && apt-get install -y \
     libx11-dev \
     libxt-dev \
     libopenblas-dev \
+    perl \
+    make \
+    bzip2 \
+    gnuplot \
+    gawk \
     gfortran \
     libhdf5-dev \
     python3-dev \
@@ -41,18 +39,25 @@ RUN apt-get update && apt-get install -y \
     r-base \
     && apt-get clean
 
-# Installation von Bowtie2 und Samtools
-RUN apt-get install -y bowtie2 samtools
+RUN conda update -n base -c defaults conda
+RUN conda config --add channels anaconda
+RUN conda config --add channels conda-forge
+RUN conda config --add channels bioconda
 
 # Installation von Python-Paketen
-RUN pip3 install pandas
+RUN conda install -y conda-forge::pandas=2.2.3
 
-# Installation von R-Paketen
-RUN R -e "install.packages(c('BiocManager', 'ggplot2', 'Cairo'), repos='http://cran.rstudio.com/')"
-RUN R -e "BiocManager::install(c('DESeq2', 'coseq'))"
+# Installation von R-Paketen, inkl. ggplot2 Version 3.5.1
+RUN conda install -y conda-forge::r-ggplot2=3.5.1
+RUN conda install -y conda-forge::r-biocmanager=1.30.25
+RUN conda install -y bioconda::bioconductor-deseq2=1.42.0
+RUN conda install -y bioconda::bioconductor-coseq=1.26.0
+
+RUN apt-get install -y libcairo2-dev libtiff-dev libglib2.0-dev
+# RUN R -e "install.packages('https://cran.r-project.org/src/contrib/Cairo_1.6-2.tar.gz', repos=NULL, type='source')"
 
 # Cleanup unnötiger Dateien
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN conda clean --all -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Standard-Arbeitsverzeichnis
 WORKDIR /data
