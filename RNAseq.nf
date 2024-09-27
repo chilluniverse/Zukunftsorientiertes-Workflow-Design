@@ -12,6 +12,7 @@ params.outdir = "$baseDir/results/RNAseq"                         // output dire
 
 //> Build Bowtie2 Index
 process BOWTIE2_BUILD {
+    container 'staphb/bowtie2:2.5.4'
     tag "$fasta"
     label 'process_high'
 
@@ -30,6 +31,7 @@ process BOWTIE2_BUILD {
 
 //> Align Sequence
 process BOWTIE2_ALIGN {
+    container 'staphb/bowtie2:2.5.4'
     maxForks 1
     memory '30 GB'
     errorStrategy 'retry'
@@ -52,6 +54,7 @@ process BOWTIE2_ALIGN {
 
 //> Convert SAM to BAM and Index
 process PROCESS_SAM {
+    container 'staphb/samtools:1.20'
     maxForks 1
     memory '30 GB'
     errorStrategy 'retry'
@@ -86,6 +89,7 @@ process PROCESS_SAM {
 
 //> Build Matrix from read counts
 process BUILD_MATRIX {
+    container 'rnaseq:1.0'
 
     publishDir "$params.outdir/DEG", mode: 'copy', overwrite: 'true'
 
@@ -103,6 +107,7 @@ process BUILD_MATRIX {
 
 //> Generate Metadata file
 process GENERATE_METADATA {
+    container 'rnaseq:1.0'
     publishDir "$params.outdir/DEG", mode: 'copy', overwrite: 'true'
 
     input:
@@ -142,6 +147,7 @@ process GENERATE_METADATA {
 }
 
 process DEG {
+    container 'rnaseq:1.0'
     publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
 
     input:
@@ -150,16 +156,17 @@ process DEG {
 
     output:
     path ('results')
-    path ('results/coseq-clusters_all.csv') ,emit: cluster_all
+    path ('results/clustering/coseq-clusters_all.csv') ,emit: cluster_all
 
     script:
     """
-    mkdir -p results{plots,upregulated_genes,significantGenes,clustering}
+    mkdir -p results/{plots,upregulated_genes,significantGenes,clustering}
     RNA-seq.r $countData $metaData
     """
 }
 
 process EXTRACT_CLUSTER {
+    container 'rnaseq:1.0'
     publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
 
     input:
