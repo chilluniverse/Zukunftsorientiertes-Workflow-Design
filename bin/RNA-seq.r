@@ -4,7 +4,6 @@
 library(DESeq2)
 library(ggplot2)
 library(coseq)
-library(Cairo)
 
 #- parse arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -106,12 +105,11 @@ write.csv(floor(filtered_countMatrix_collapsed), file = "results/filtered_countM
 #- generate PCA Plot
 rld <- rlog(dds_all, blind = FALSE)
 PCA_plot <- plotPCA(rld, intgroup=c("Organism", "Time_point"), ntop = 500)
-Cairo::Cairo(file="results/plots/PCA.png",
-      type="png", 
-      width=20, 
-      height=15,
-      units="cm",
-      dpi=300)
+png(filename="results/plots/PCA.png",
+    width=20, 
+    height=15,
+    units="cm",
+    res=300)
 PCA_plot
 invisible(dev.off)
 
@@ -200,11 +198,10 @@ write.csv(profiles_all, file = "results/clustering/coseq-profiles_all.csv")
 conds_all <- dds_sigGenes_all$Time_point
 print(conds_all)
 profiles_plot_all <- plot(coseq_sigGenes_all, graphs = "profiles", conds = conds_all, collapse_reps = "average", order = TRUE)
-Cairo::Cairo(file="results/plots/clustering_plot.png",
-      type="png", 
-      width=20, 
-      height=15,
-      units="cm",
-      dpi=300)
+png(filename="results/plots/clustering_plot.png",
+    width=20, 
+    height=15,
+    units="cm",
+    res=300)
 profiles_plot_all
 invisible(dev.off) # to close the file
