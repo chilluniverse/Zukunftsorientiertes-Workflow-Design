@@ -10,3 +10,5 @@ work/
 *.bai
 *.bed
 results/
+data/references/ATACseq/dmel-all-r6.54.gtf
+data/pnr-motif/
