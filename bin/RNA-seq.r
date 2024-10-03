@@ -13,6 +13,8 @@ countData_all <- read.csv(args[1], header = TRUE, sep = "\t")
 
 metaData_all <- read.csv(args[2], header = TRUE, sep = ",")
 
+output_folder <- args[3]
+
 metaData_split  <- split(metaData_all, metaData_all$Time_point)
 
 metaData_72h <- metaData_split[["A_72h"]]
@@ -58,28 +60,28 @@ res_120h <- results(dds_120h)
 # 72h
 # total number of DEGs
 upreg_72h_total <- subset(res_72h, padj < 0.05)
-write.csv(upreg_72h_total , file = "results/upregulated_genes/upreg_72h_total.csv")
+write.csv(upreg_72h_total , file = paste(output_folder,"/upregulated_genes/upreg_72h_total.csv", sep = ""))
 # upregulated in D. mauritiana
 upreg_72h_dmau <- subset(res_72h, padj < 0.05 & log2FoldChange > 0)
-write.csv(upreg_72h_dmau , file = "results/upregulated_genes/upreg_72h_dmau.csv")
+write.csv(upreg_72h_dmau , file = paste(output_folder,"/upregulated_genes/upreg_72h_dmau.csv", sep = ""))
 
 
 # 96h
 # total number of DEGs
 upreg_96h_total <- subset(res_96h, padj < 0.05)
-write.csv(upreg_96h_total , file = "results/upregulated_genes/upreg_96h_total.csv")
+write.csv(upreg_96h_total , file = paste(output_folder,"/upregulated_genes/upreg_96h_total.csv", sep = ""))
 # upregulated in D. mauritiana
 upreg_96h_dmau <- subset(res_96h, padj < 0.05 & log2FoldChange > 0)
-write.csv(upreg_96h_dmau , file = "results/upregulated_genes/upreg_96h_dmau.csv")
+write.csv(upreg_96h_dmau , file = paste(output_folder,"/upregulated_genes/upreg_96h_dmau.csv", sep = ""))
 
 # 120h
 # total number of DEGs
 upreg_120h_total <- subset(res_120h, padj < 0.05)
-write.csv(upreg_120h_total , file = "results/upregulated_genes/upreg_120h_total.csv")
+write.csv(upreg_120h_total , file = paste(output_folder,"/upregulated_genes/upreg_120h_total.csv", sep = ""))
 
 # upregulated in D. mauritiana
 upreg_120h_dmau <- subset(res_120h, padj < 0.05 & log2FoldChange > 0)
-write.csv(upreg_120h_dmau , file = "results/upregulated_genes/upreg_120h_dmau.csv")
+write.csv(upreg_120h_dmau , file = paste(output_folder,"/upregulated_genes/upreg_120h_dmau.csv", sep = ""))
 
 
 
@@ -91,21 +93,21 @@ dds_all_filtered_HTS <- HTSFilter(dds_all, plot = TRUE, normalization = "DESeq")
 dds_all_filtered <- dds_all_filtered_HTS$filteredData
 
 filtered_countMatrix <- counts(dds_all_filtered)
-write.csv(filtered_countMatrix, file = "results/filtered_countMatrix.csv")
+write.csv(filtered_countMatrix, file = paste(output_folder,"/filtered_countMatrix.csv", sep = ""))
 
 filtered_countMatrix_collapsed <- counts(collapseReplicates(dds_all_filtered, 
                                                             dds_all_filtered$Time_point, 
                                                             dds_all_filtered$Organism), normalized = TRUE)
 
 #! floor() -> round off collapsed values
-write.csv(floor(filtered_countMatrix_collapsed), file = "results/filtered_countMatrix_collapsed.csv")
+write.csv(floor(filtered_countMatrix_collapsed), file = paste(output_folder,"/filtered_countMatrix_collapsed.csv", sep = ""))
 
 
 
 #- generate PCA Plot
 rld <- rlog(dds_all, blind = FALSE)
 PCA_plot <- plotPCA(rld, intgroup=c("Organism", "Time_point"), ntop = 500)
-png(filename="results/plots/PCA.png",
+png(filename=paste(output_folder,"/plots/PCA.png", sep = ""),
     width=20, 
     height=15,
     units="cm",
@@ -137,8 +139,8 @@ sigGenes_all_120  <- subset(resLFC_all_120, log2FoldChange < 0 & padj < 0.05)
 sigGenes_ids_all_96  <- rownames(sigGenes_all_96)
 sigGenes_ids_all_120  <- rownames(sigGenes_all_120)
 
-write.csv(sigGenes_ids_all_96, file = "results/significantGenes/sigGenes_ids_all_downreg_96.csv")
-write.csv(sigGenes_ids_all_120, file = "results/significantGenes/sigGenes_ids_all_downreg_120.csv")
+write.csv(sigGenes_ids_all_96, file = paste(output_folder,"/significantGenes/sigGenes_ids_all_downreg_96.csv", sep = ""))
+write.csv(sigGenes_ids_all_120, file = paste(output_folder,"/significantGenes/sigGenes_ids_all_downreg_120.csv", sep = ""))
 
 #- combine the read counts that were significantly differentially expressed
 #? (log2FC > 0 | log2FC < 0 and padj < 0.05)
@@ -163,10 +165,10 @@ expGenes_ids_72h  <- rownames(expGenes_72h)
 expGenes_ids_96h  <- rownames(expGenes_96h)
 expGenes_ids_120h <- rownames(expGenes_120h)
 
-write.csv(sigGenes_ids_all, file = "results/significantGenes/sigGenes_ids_all.csv")
-write.csv(sigGenes_ids_72h, file = "results/significantGenes/sigGenes_ids_72h.csv")
-write.csv(sigGenes_ids_96h, file = "results/significantGenes/sigGenes_ids_96h.csv")
-write.csv(sigGenes_ids_120h, file = "results/significantGenes/sigGenes_ids_120h.csv")
+write.csv(sigGenes_ids_all, file = paste(output_folder,"/significantGenes/sigGenes_ids_all.csv", sep = ""))
+write.csv(sigGenes_ids_72h, file = paste(output_folder,"/significantGenes/sigGenes_ids_72h.csv", sep = ""))
+write.csv(sigGenes_ids_96h, file = paste(output_folder,"/significantGenes/sigGenes_ids_96h.csv", sep = ""))
+write.csv(sigGenes_ids_120h, file = paste(output_folder,"/significantGenes/sigGenes_ids_120h.csv", sep = ""))
 
 #! 'dds_sigGenes' <= dds gets reduced to significantly differentially expressed genes
 dds_sigGenes_all  <- dds_all[sigGenes_ids_all, ]
@@ -181,24 +183,24 @@ coseq_sigGenes_all <- coseq::coseq(dds_sigGenes_all, K = 2:25,
                                transformation = "arcsin",
                                norm = "TMM", model = "Normal", parallel = TRUE, seed = 2602112)
 
-sink(file = "results/clustering/coseq-summary_all.txt")
+sink(file = paste(output_folder,"/clustering/coseq-summary_all.txt", sep = ""))
 summary(coseq_sigGenes_all)
 sink(file = NULL)
 
 #- Export clusters and profiles
 #? clusters ? "FBgnXXXXXXX","#cluster"
 clusters_all <- clusters(coseq_sigGenes_all)
-write.csv(clusters_all, file = "results/clustering/coseq-clusters_all.csv")
+write.csv(clusters_all, file = paste(output_folder,"/clustering/coseq-clusters_all.csv", sep = ""))
 # profiles ? table with avg. expression profiles
 profiles_all <- profiles(coseq_sigGenes_all)
-write.csv(profiles_all, file = "results/clustering/coseq-profiles_all.csv")
+write.csv(profiles_all, file = paste(output_folder,"/clustering/coseq-profiles_all.csv", sep = ""))
 
 
 #- plotting time <3
 conds_all <- dds_sigGenes_all$Time_point
 print(conds_all)
 profiles_plot_all <- plot(coseq_sigGenes_all, graphs = "profiles", conds = conds_all, collapse_reps = "average", order = TRUE)
-png(filename="results/plots/clustering_plot.png",
+png(filename=paste(output_folder,"/plots/clustering_plot.png", sep = ""),
     width=20, 
     height=15,
     units="cm",
