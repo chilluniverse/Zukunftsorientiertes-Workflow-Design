@@ -3,7 +3,7 @@
 //? path definitions
 params.genome = "$baseDir/data/references/RNAseq/dmel/*.fasta"    // transcriptome reference files
 params.reads = "$baseDir/data/fasta/RNAseq/**/*.fasta"            // fasta raw sequences
-params.outdir = "$baseDir/results/RNAseq"                         // output directory
+params.outdir = "$baseDir/data/results/RNAseq"                         // output directory
 
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -61,14 +61,13 @@ process PROCESS_SAM {
     maxErrors 5
 
     tag "$sam_file"
-    publishDir "$params.outdir/BAM", mode: 'copy', overwrite: 'true', pattern: "{*.tsv,*.stats}"
+    publishDir "$params.outdir/1_alignedReads", mode: 'move', overwrite: 'true', pattern: "{*.stats}"
+    publishDir "$params.outdir/1_alignedReads/read_counts", mode: 'copy', overwrite: 'true', pattern: "{*.tsv}"
 
     input:
     path sam_file
 
     output:
-    path("${sam_file.simpleName}.sorted.bam")
-    path("${sam_file.simpleName}.sorted.bam.bai")
     path("${sam_file.simpleName}.sorted.bam.tsv")   ,emit: read_count
     path("${sam_file.simpleName}.bam.stats")
 
@@ -81,7 +80,7 @@ process PROCESS_SAM {
 
     samtools index      -@ ${params.max_cpus} ${sam_file.simpleName}.sorted.bam -o ${sam_file.simpleName}.sorted.bam.bai
 
-    samtools idxstats   -@ ${params.max_cpus} ${sam_file.simpleName}.sorted.bam &> ${sam_file.simpleName}.sorted.bam.tsv
+    samtools idxstats   -@ ${params.max_cpus} -X ${sam_file.simpleName}.sorted.bam ${sam_file.simpleName}.sorted.bam.bai &> ${sam_file.simpleName}.sorted.bam.tsv
 
     samtools stats      -@ ${params.max_cpus} ${sam_file.simpleName}.bam &> ${sam_file.simpleName}.bam.stats
     """
@@ -91,7 +90,7 @@ process PROCESS_SAM {
 process BUILD_MATRIX {
     container 'rnaseq:1.0'
 
-    publishDir "$params.outdir/DEG", mode: 'copy', overwrite: 'true'
+    publishDir "$params.outdir/1_Matrix_Metadata_for_DEG", mode: 'copy', overwrite: 'true'
 
     input:
     val files
@@ -107,11 +106,10 @@ process BUILD_MATRIX {
 
 //> Generate Metadata file
 process GENERATE_METADATA {
-    container 'rnaseq:1.0'
-    publishDir "$params.outdir/DEG", mode: 'copy', overwrite: 'true'
+    publishDir "$params.outdir/1_Matrix_Metadata_for_DEG", mode: 'copy', overwrite: 'true'
 
     input:
-    path sam_files
+    path file
 
     output:
     path 'metadata.csv'
@@ -119,7 +117,7 @@ process GENERATE_METADATA {
     script:
     """
     echo "Run,Organism,Time_point" > metadata.csv
-    for file in ${sam_files}; do
+    for file in ${file}; do
         filename=\$(basename "\$file" .sorted.bam.tsv)
         organism=\$(echo \$filename | cut -d'_' -f1)
         time=\$(echo \$filename | cut -d'_' -f2)
@@ -155,13 +153,13 @@ process DEG {
     path metaData
 
     output:
-    path ('results')
-    path ('results/clustering/coseq-clusters_all.csv') ,emit: cluster_all
+    path ("2_DEG")
+    path ("2_DEG/clustering/coseq-clusters_all.csv") ,emit: cluster_all
 
     script:
     """
-    mkdir -p results/{plots,upregulated_genes,significantGenes,clustering}
-    RNA-seq.r $countData $metaData
+    mkdir -p 2_DEG/{plots,upregulated_genes,significantGenes,clustering}
+    RNA-seq.r $countData $metaData 2_DEG
     """
 }
 
@@ -203,7 +201,7 @@ workflow {
                                                | collect(flat: false) // Process SAM Files
     } else {
         // if alignment is skipped, get read count data from results-path
-        read_count = Channel.fromPath("${params.outdir}/BAM/*.sorted.bam.tsv").collect(flat: false) 
+        read_count = Channel.fromPath("${params.outdir}/0_alignedReads/**/*.sorted.bam.tsv").collect(flat: false) 
     }
 
     //> DEG Analysis
