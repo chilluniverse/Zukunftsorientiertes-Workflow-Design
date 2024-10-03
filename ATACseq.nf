@@ -59,24 +59,21 @@ process BOWTIE2_ALIGN {
 
 //> Convert SAM to BAM and Index
 process PROCESS_SAM {
+    container 'staphb/samtools:1.20'
     maxForks 1
     memory '30 GB'
     errorStrategy 'retry'
     maxErrors 1
 
-    tag "$sample_name"
+    tag "$mapping"
     publishDir "$params.outdir/0_alignedReads", mode: 'move', overwrite: 'true', pattern: "{*.stats}"
-    publishDir "$params.outdir/0_alignedReads/bed", mode: 'copy', overwrite: 'true', pattern: "{*.bed}"
 
     input:
     tuple val(sample_name), path(mapping)
 
     output:
-    // path("${sample_name}.sorted.bam")
-    // path("${sample_name}.sorted.bam.bai")
     path("${sample_name}.bam.stats")
-    // path("${sample_name}_rmD.bam")
-    path("${sample_name}_rmD.bed") ,emit: bed_file
+    path("${sample_name}.sorted.bam") ,emit: bam_file
 
     """
     samtools view       -@ ${params.max_cpus} -h -S -b -o ${sample_name}.bam "$mapping/${sample_name}.sam"
@@ -86,12 +83,51 @@ process PROCESS_SAM {
     samtools index      -@ ${params.max_cpus} ${sample_name}.sorted.bam -o ${sample_name}.sorted.bam.bai
 
     samtools stats      -@ ${params.max_cpus} ${sample_name}.bam &> ${sample_name}.bam.stats
-
-    picard MarkDuplicates I=${sample_name}.sorted.bam O=${sample_name}_rmD.bam M="$mapping/${sample_name}.metrics" REMOVE_DUPLICATES=TRUE
-
-    bedtools bamtobed -i "${sample_name}_rmD.bam" > "${sample_name}_rmD.bed"
-
     """
+}
+
+process MARK_DUPLICATES {
+    container 'broadinstitute/gatk:4.6.0.0'
+    maxForks 3
+    memory '10 GB'
+
+    tag "$in_file"
+
+    publishDir "$params.outdir/0_alignedReads", mode: 'move', overwrite: 'true', pattern: "{*.metrics}"
+
+    input:
+    path in_file
+
+    output:
+    path("${in_file.simpleName}_rmD.bam"), emit: bam_file
+    path("${in_file.simpleName}.metrics")
+
+    script:
+    """
+    gatk MarkDuplicates -I ${in_file} -O ${in_file.simpleName}_rmD.bam -M "${in_file.simpleName}.metrics" --REMOVE_DUPLICATES TRUE
+    """
+}
+
+process BAM_TO_BED {
+    container 'pegi3s/bedtools:2.31.0'
+    maxForks 3
+    memory '30 GB'
+
+    tag "$bam_file"
+
+    publishDir "$params.outdir/0_alignedReads/bed", mode: 'copy', overwrite: 'true', pattern: "{*.bed}"
+
+    input:
+    path bam_file
+
+    output:
+    path ("${bam_file.simpleName}.bed"), emit: bed_file
+
+    script:
+    """
+    bedtools bamtobed -i "${bam_file}" > "${bam_file.simpleName}.bed"
+    """
+
 }
 
 //> PEAK CALLING
@@ -149,11 +185,8 @@ process FILTER_NARROWPEAKS {
     path annotation
 
     output:
-    path "${annotation.simpleName}_filtered.csv"
-    path "${annotation.simpleName}.narrowPeak"
     path "${annotation.simpleName}.bed"         ,emit: filtered_peaks
 
-    // cut -f10 ${annotation} | grep -v 'NA'  > "${annotation.simpleName}_filtered.csv"
     script:
     """
     awk -F'\\t' '\$10 != "NA"' ${annotation} > "${annotation.simpleName}_filtered.csv"
@@ -204,13 +237,6 @@ process MERGE_PEAKS {
     sort -k 1,1 -k2,2n "merged_peaks_tmp.bed" > "merged_peaks_sorted.bed"
     awk -F'\\t' 'BEGIN {OFS=FS} {if (\$4 == "") \$4 = "peak_" counter++; print}' "merged_peaks_sorted.bed" > "merged_peaks.bed"
     """
-
-    // """
-    // cat ${filtered_peaks_bed} > "merged_peaks_tmp.bed"
-    // sort -k 1,1 -k2,2n "merged_peaks_tmp.bed" > "merged_peaks_sorted.bed"
-    // bedtools merge -i "merged_peaks_sorted.bed"  > "merged_peaks_woID.bed"
-    // awk -F'\\t' 'BEGIN {OFS=FS} {if (\$4 == "") \$4 = "peak_" counter++; print}' "merged_peaks_woID.bed" > "merged_peaks.bed"
-    // """
 }
 
 process FIND_MOTIF {
@@ -312,14 +338,27 @@ workflow {
                                                             | flatten
                                                             | collate( 2 )
 
-        bed_file = PROCESS_SAM(bowtie_output).bed_file 
+        // bed_file = PROCESS_SAM(bowtie_output).bed_file 
+        //                                        | collect
+        //                                        | flatten
+
+        bam_file = PROCESS_SAM(bowtie_output).bam_file
+        rmD_bam_file = MARK_DUPLICATES(bam_file).bam_file
+        bed_file = BAM_TO_BED(rmD_bam_file).bed_file 
                                                | collect
                                                | flatten
+        
     } else {
         // if alignment is skipped, get read count data from results-path
         bed_file = Channel.fromPath("${params.outdir}/0_alignedReads/**/*.bed")
 
     }
+
+    if (params.pnrmotif) {
+        bed_files = Channel.fromPath(params.chip)
+        GENERATE_MOTIF(bed_files)
+    }
+
     gtf = file(params.gtf)
     if (params.peakcalling) {
         summit_bed = PEAK_CALLING(bed_file).summit
@@ -327,11 +366,6 @@ workflow {
         annotation = ANNOTATE(summit_bed, gtf)
         filtered_peaks = FILTER_NARROWPEAKS(macs2, annotation).filtered_peaks
                                                                 | collect
-    }
-
-    if (params.pnrmotif) {
-        bed_files = Channel.fromPath(params.chip)
-        GENERATE_MOTIF(bed_files)
     }
 
     if (params.motif) {
