@@ -53,9 +53,6 @@ RUN conda install -y conda-forge::r-biocmanager=1.30.25
 RUN conda install -y bioconda::bioconductor-deseq2=1.42.0
 RUN conda install -y bioconda::bioconductor-coseq=1.26.0
 
-RUN apt-get install -y libcairo2-dev libtiff-dev libglib2.0-dev
-# RUN R -e "install.packages('https://cran.r-project.org/src/contrib/Cairo_1.6-2.tar.gz', repos=NULL, type='source')"
-
 # Cleanup unnötiger Dateien
 RUN conda clean --all -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
