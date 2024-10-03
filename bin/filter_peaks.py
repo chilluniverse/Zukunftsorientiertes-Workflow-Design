@@ -26,8 +26,9 @@ def get_PeakID(file_name):
         csvreader = csv.reader(csvfile, delimiter='\t')
         next(csvreader) # skip header row
         for row in csvreader:
-            PeakID.append(row[0])
-    return PeakID
+            PeakID.append(row[0].split("-")[0])
+    
+    return set(PeakID)
 
 #> Read in *.narrowPeak file and filter out all lines without valid annotation
 def filter_Peaks(file_name, PeakID):
