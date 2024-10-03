@@ -51,7 +51,7 @@ for column in clusters.columns:
     new_df.to_csv(args.output_path + f'/c{column}.txt', index=False, header=None)
     
     # Write .job file for metascape container
-    job_file.write("""{"input":"/data/cluster/c"""+column+""".txt", "output":"/data/resluts/c"""+column+"""", "single":true, "source_tax_id": 7227, "target_tax_id":7227}\n""")
+    job_file.write("""{"input":"/data/cluster/c"""+column+""".txt", "output":"/data/results/c"""+column+"""", "single":true, "source_tax_id": 7227, "target_tax_id":7227}\n""")
 
 job_file.close()
 
