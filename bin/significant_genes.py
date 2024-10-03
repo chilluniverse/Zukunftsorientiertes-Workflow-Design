@@ -36,28 +36,18 @@ def get_gene_names(filepath):
     return dict
 
 #> Count all apperances of the genes in all annoations
-def count_genes(folder, annotation_filename, gene_count):
-    # Recursively walk through the folder and its subfolders
-    for root, dirs, files in os.walk(folder):
-        # Filter out all files that are not tsv-files
-        annotations = [file for file in files if file == annotation_filename]
-
-        # Iterate over all annotation-files in the current directory
-        for annotation in annotations:
-            file_path = os.path.join(root, annotation)
-
-            # extract the value of the 12th column of a tsv file?
-            # Open the annotation-file and read its content
-            with open(file_path, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        values = line.split('\t')
-                        if len(values) >= 12:
-                            gene = values[11]
-                            if gene in gene_count:
-                                gene_count[gene] += 1
-    
+def count_genes(folder, annotation, gene_count):
+    # extract the value of the 12th column of a tsv file?
+    # Open the annotation-file and read its content
+    with open(annotation, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                values = line.split('\t')
+                if len(values) >= 12:
+                    gene = values[11]
+                    if gene in gene_count:
+                        gene_count[gene] += 1
     return gene_count
 
 def filter_apperance(count, gene_count):
@@ -76,9 +66,8 @@ def write_genes(path, gene_count, outname):
 def main():
     args = parse_arguments()
     gene_list_file = args.path + args.genes
-    annotation_filename = args.annotation
     gene_counts = get_gene_names(gene_list_file)
-    gene_counts = count_genes(args.path, annotation_filename, gene_counts)
+    gene_counts = count_genes(args.path, args.annotation, gene_counts)
     gene_counts = filter_apperance(args.count, gene_counts)
     
     write_genes(args.path, gene_counts, args.outname)
