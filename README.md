@@ -44,7 +44,7 @@ Um mithilde der ATACseq Pipeline de novo ein Pnr-Motif zu generieren, wird der B
 
 Ist erfolgreich ein Pnr-Motif gefunden und abgelegt, so kann die restliche Pipeline ausgeführt werden: `nextflow run ATACseq.nf --align --peakcalling --motif`. Wie in der RNAseq Pipeline, kann auch hier die restliche Pipeline getrennt vom Alignment ausgeführt werden, wenn zuvor das Alignment (`--align`) ausgeführt wurde. (Hinweis: `--peakcalling` kann auch ohne `--motif` ausgeführt werden, allerding wird bei `--motif` auch automatisch `--peakcalling` ausgeführt) Weitere Informationen zu Parametern finden sich hier.
 
-## Methoden
+## Pipeline Aufrufe
 
 ### DownloadData.nf
 
@@ -106,6 +106,26 @@ Params:
 --pnr_motif_opt "/path/to/opt/motifs/*.motif" (default: "$baseDir/data/pnr-motif/optional/*.motif")
 --outdir        "/path/to/results" (default: "$baseDir/data/results/ATACseq")
                 Absoluter Dateipfad in dem Resultate gespeichert werden sollen
+```
+## Syntax SRA_Download.csv
+In der Datei `/data/fasta/SRA_Download.cs` wird definiert, welche Daten von SRA heruntergeladen werden, mit welchem Dateinamen und unter welchem Dateipfad sie jeweils gespeichert werden. Dabei ist der Dateipfad relativ zum Parameter `data_path`. Des weiteren ist einer Syntax für `rename` vorgesehen mit folgender Belegung:
+
+```bash
+<organism>_<timepoint>_<sample>
+<organism>: "dmel" oder "dmau"
+<timepoint>: "72h", "96h" oder "120h"
+<sample>: "A", "B" oder "C"
+```
+
+Bei Abweichung von dieser Syntax, muss das R Script `RNA-seq.r` entsprechend angepasst werden.
+
+**SRA_Download.csv**
+```plist
+run,rename,path
+SRR12744924,dmau_120h_B,/ATACseq/dmau
+SRR12744929,dmau_72h,/ATACseq/dmau
+SRR12744928,dmau_96h_A,/ATACseq/dmau
+...
 ```
 
 ## Quellenverzeichnis
