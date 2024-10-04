@@ -7,6 +7,7 @@ params.data_path = "$baseDir/data"
 params.rna_ref = "https://ftp.flybase.org/genomes/dmel/dmel_r6.54_FB2023_05/fasta/dmel-all-transcript-r6.54.fasta.gz"
 params.atac_ref = "https://ftp.flybase.org/genomes/dmel/dmel_r6.54_FB2023_05/fasta/dmel-all-chromosome-r6.54.fasta.gz"
 params.atac_gtf = "http://ftp.flybase.net/genomes/Drosophila_melanogaster/dmel_r6.54_FB2023_05/gtf/dmel-all-r6.54.gtf.gz"
+params.chip = ["http://furlonglab.embl.de/labData/publications/2012/Junion-et-al-2012_Cell/signal_files/Pnr_4-6h_allIPvsallM_log2ratio_5probes-smoothed_Junion2012.bigwig", "http://furlonglab.embl.de/labData/publications/2012/Junion-et-al-2012_Cell/signal_files/Pnr_6-8h_allIPvsallM_log2ratio_5probes-smoothed_Junion2012.bigwig"]
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            PROCESSES            !!!
@@ -83,11 +84,36 @@ process REFERENCE_ATAC {
     """
 }
 
+//> Download ChIP-Chip data
+//* and convert to BED file format
+process CHIP_CHIP {
+    conda 'bioconda::ucsc-bigwigtobedgraph'
+
+    publishDir "$params.data_path/fasta/ChIP-chip", mode: 'move', overwrite: 'true'
+
+    input:
+    val(link)
+
+    output:
+    path('*.bed')
+
+    shell:
+    """
+    wget $link
+    link=$link
+    filename=\${link##*/}
+    bigWigToBedGraph \$filename \${filename%.bigwig}.bed
+    """
+}
+
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            WORKFLOW            !!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 workflow {
+
+    CHIP_CHIP(Channel.fromList(params.chip))
+
     REFERENCE_RNA(params.rna_ref)
 
     REFERENCE_ATAC(params.atac_ref, params.atac_gtf)
