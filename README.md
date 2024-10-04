@@ -42,7 +42,7 @@ Um mithilde der ATACseq Pipeline de novo ein Pnr-Motif zu generieren, wird der B
 
 #### 4.2 ATACseq Workflow
 
-Ist erfolgreich ein Pnr-Motif gefunden und abgelegt, so kann die restliche Pipeline ausgeführt werden: `nextflow run ATACseq.nf --align --peakcalling --motif`. Wie in der RNAseq Pipeline, kann auch hier die restliche Pipeline getrennt vom Alignment ausgeführt werden, wenn zuvor das Alignment (`--align`) ausgeführt wurde. (Hinweis: `--peakcalling` kann auch ohne `--motif` ausgeführt werden, allerding muss `--motif` zusammen mit `--peakcalling` ausgeführt werden.) Weitere Informationen zu Parametern finden sich hier.
+Ist erfolgreich ein Pnr-Motif gefunden und abgelegt, so kann die restliche Pipeline ausgeführt werden: `nextflow run ATACseq.nf --align --peakcalling --motif`. Wie in der RNAseq Pipeline, kann auch hier die restliche Pipeline getrennt vom Alignment ausgeführt werden, wenn zuvor das Alignment (`--align`) ausgeführt wurde. (Hinweis: `--peakcalling` kann auch ohne `--motif` ausgeführt werden, allerding wird bei `--motif` auch automatisch `--peakcalling` ausgeführt) Weitere Informationen zu Parametern finden sich hier.
 
 ## Methoden
 
@@ -92,7 +92,7 @@ Params:
 --align         Wenn gesetzt, dann wird Alignment der Reads durchgeführt
 --peakcalling   Wenn gesetzt, dann wird Peak Calling durchgeführt
 --pnrmotif      Wenn gesetzt, dann wird de novo Pnr-Motif generiert
---motif         Wenn gesetzt, dann wird Pnr-Motif in Peaks gesucht
+--motif         Wenn gesetzt, dann wird Peak Calling durchgeführt und Pnr-Motif in Peaks gesucht
 
 --genome        "/path/to/*.fasta" (default: "$baseDir/data/references/ATACseq/*.fasta")
                 Absoluter Dateipfad zu Referenz-Genom im FASTA Format
@@ -112,11 +112,11 @@ Params:
 
 > [1] Buchberger, et al.**Variation in pleiotropic hub gene expression is associated with interspeciﬁc diﬀerences in head shape and eye si- ze in drosophila.** 
  Molecular Biology and Evolution, 38(5) : 1924–1942, January 2021. doi:[10.1093/molbev/msaa335](https://doi.org/10.1093/molbev/msaa335).
-
+>
 > [2] Scott Chacon und Ben Straub. **Pro Git.** Apress, 2014. doi:[10.1007/978-1-4842-0076-6](http://dx.doi.org/10.1007/978-1-4842-0076-6)
-
+>
 > [3] Anaconda Inc. **Miniconda - Anaconda documentation**. url:https://docs.anaconda.com/miniconda/
-
+>
 > [4] P. Di Tommaso, et al. **Nextﬂow enables reproducible computational workﬂows.** Nature Biotechnology, 35(4) :316–319, April 2017. doi:[10.1038/nbt.3820](http://www.nature.com/nbt/journal/v35/n4/full/nbt.3820.html)
-
+>
 > [5] Docker Inc. **Install Docker Engine.** url:https://docs.docker.com/engine/install/ [zugegriﬀen am 03-10-2024]]
