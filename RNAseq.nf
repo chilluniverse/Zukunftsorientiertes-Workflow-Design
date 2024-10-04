@@ -1,9 +1,9 @@
 #!/usr/bin/env nextflow
 
 //? path definitions
-params.genome = "$baseDir/data/references/RNAseq/dmel/*.fasta"    // transcriptome reference files
-params.reads = "$baseDir/data/fasta/RNAseq/**/*.fasta"            // fasta raw sequences
-params.outdir = "$baseDir/data/results/RNAseq"                         // output directory
+params.genome = "$baseDir/data/references/RNAseq/*.fasta"    // transcriptome reference files
+params.reads = "$baseDir/data/fasta/RNAseq/**/*.fasta"       // fasta raw sequences
+params.outdir = "$baseDir/data/results/RNAseq"               // output directory
 
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -11,10 +11,11 @@ params.outdir = "$baseDir/data/results/RNAseq"                         // output
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //> Build Bowtie2 Index
+//* in preparation for Alignment with Bowtie2
 process BOWTIE2_BUILD {
     container 'staphb/bowtie2:2.5.4'
+
     tag "$fasta"
-    label 'process_high'
 
     input:
     path(fasta)
@@ -30,10 +31,10 @@ process BOWTIE2_BUILD {
 }
 
 //> Align Sequence
+//* using Bowtie2
 process BOWTIE2_ALIGN {
     container 'staphb/bowtie2:2.5.4'
-    maxForks 1
-    memory '30 GB'
+
     errorStrategy 'retry'
     maxErrors 5
 
@@ -53,14 +54,15 @@ process BOWTIE2_ALIGN {
 }
 
 //> Convert SAM to BAM and Index
+//* using SAMtools; additionally generate Alignment Statistics from Input BAM
 process PROCESS_SAM {
     container 'staphb/samtools:1.20'
-    maxForks 1
-    memory '30 GB'
+
     errorStrategy 'retry'
     maxErrors 5
 
     tag "$sam_file"
+
     publishDir "$params.outdir/1_alignedReads", mode: 'move', overwrite: 'true', pattern: "{*.stats}"
     publishDir "$params.outdir/1_alignedReads/read_counts", mode: 'copy', overwrite: 'true', pattern: "{*.tsv}"
 
@@ -87,6 +89,7 @@ process PROCESS_SAM {
 }
 
 //> Build Matrix from read counts
+//* in preparation for DEG with DESeq2
 process BUILD_MATRIX {
     container 'rnaseq:1.0'
 
@@ -105,6 +108,7 @@ process BUILD_MATRIX {
 }
 
 //> Generate Metadata file
+//* in preparation for DEG with DESeq2
 process GENERATE_METADATA {
     publishDir "$params.outdir/1_Matrix_Metadata_for_DEG", mode: 'copy', overwrite: 'true'
 
@@ -143,9 +147,11 @@ process GENERATE_METADATA {
     done
     """
 }
-
+//> differential expression gene analysis and clustering
+//* with DESeq2 and cosiq
 process DEG {
     container 'rnaseq:1.0'
+
     publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
 
     input:
@@ -163,8 +169,10 @@ process DEG {
     """
 }
 
+//> Split Genes according to their cluster
 process EXTRACT_CLUSTER {
     container 'rnaseq:1.0'
+
     publishDir "$params.outdir", mode: 'copy', overwrite: 'true'
 
     input:
@@ -181,30 +189,31 @@ process EXTRACT_CLUSTER {
     """
 }
 
-//!!!!!!!!!!!!!!!!!!!!!!!!
-//!     WORKFLOW
-//!!!!!!!!!!!!!!!!!!!!!!!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//!!!            WORKFLOW            !!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 workflow {
     //> Alignment / Mapping
+    //? execute only if parameter --align is set via CLI on execution
     if (params.align) {
         genome = file(params.genome)                    // get transcriptome file from path
         bowtie_index = BOWTIE2_BUILD(genome)            // build bowtie index from transcriptome
         reads = Channel.fromPath(params.reads)          // get reads from path
-        BOWTIE2_ALIGN(reads, bowtie_index).sam          // Alignment
-                                        | collect
-                                        | flatten
-                                        | collate( 1 )
-                                        | set {bowtie_output}
+        bowtie_output = BOWTIE2_ALIGN(reads, bowtie_index).sam // Alignment
+                                        | collect              // collect all Outputs in a list
+                                        | flatten              // separate each entry
+                                        | collate( 1 )         // publish each entry seperatly to following process
 
-        read_count = PROCESS_SAM(bowtie_output).read_count 
-                                               | collect(flat: false) // Process SAM Files
+        read_count = PROCESS_SAM(bowtie_output).read_count      // Process SAM Files
+                                               | collect(flat: false) // collect all Outputs in a list
     } else {
         // if alignment is skipped, get read count data from results-path
         read_count = Channel.fromPath("${params.outdir}/0_alignedReads/**/*.sorted.bam.tsv").collect(flat: false) 
     }
 
     //> DEG Analysis
+    //? execute only if parameter --DEG is set via CLI on execution
     if (params.DEG) {   
         countData = BUILD_MATRIX(read_count)                    // Build Count Matrix for DEG-Analysis
         metaData = GENERATE_METADATA(read_count)                // Build Metadata File for for DEG-Analysis

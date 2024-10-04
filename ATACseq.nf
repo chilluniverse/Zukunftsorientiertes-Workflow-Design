@@ -1,24 +1,26 @@
 #!/usr/bin/env nextflow
 
 //? path definitions
-params.genome = "$baseDir/data/references/ATACseq/*.fasta"    // transcriptome reference files
-params.gtf = "$baseDir/data/references/ATACseq/*.gtf"
-params.reads = "$baseDir/data/fasta/ATACseq/**/*.fasta"            // fasta raw sequences
-params.chip = "$baseDir/data/fasta/ChIP-chip/*.bed"
-params.pnr_motif = "$baseDir/data/pnr-motif/*.motif"
-params.pnr_motif_opt = "$baseDir/data/pnr-motif/optional/*.motif"
+//@param $baseDir - Path where this Pipeline is located at
+params.genome = "$baseDir/data/references/ATACseq/*.fasta"        // genome reference files
+params.gtf = "$baseDir/data/references/ATACseq/*.gtf"             // gts reference file
+params.reads = "$baseDir/data/fasta/ATACseq/**/*.fasta"           // fasta raw sequences
+params.chip = "$baseDir/data/fasta/ChIP-chip/*.bed"               // ChIP-chip bed-files
+params.pnr_motif = "$baseDir/data/pnr-motif/*.motif"              // Pnr-motif
+params.pnr_motif_opt = "$baseDir/data/pnr-motif/optional/*.motif" // Optional Pnr-motif(s)
 
-params.outdir = "$baseDir/data/results/ATACseq"                         // output directory
+params.outdir = "$baseDir/data/results/ATACseq"                   // output directory
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            PROCESSES            !!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //> Build Bowtie2 Index
+//* in preparation for Alignment with Bowtie2
 process BOWTIE2_BUILD {
     container 'staphb/bowtie2:2.5.4'
+
     tag "$fasta"
-    label 'process_high'
 
     input:
     path(fasta)
@@ -34,10 +36,12 @@ process BOWTIE2_BUILD {
 }
 
 //> Align Sequence
+//* using Bowtie2
 process BOWTIE2_ALIGN {
     container 'staphb/bowtie2:2.5.4'
-    maxForks 1
-    memory '30 GB'
+
+    label 'half'
+
     errorStrategy 'retry'
     maxErrors 5
 
@@ -58,14 +62,17 @@ process BOWTIE2_ALIGN {
 }
 
 //> Convert SAM to BAM and Index
+//* using SAMtools; additionally generate Alignment Statistics from Input BAM
 process PROCESS_SAM {
     container 'staphb/samtools:1.20'
-    maxForks 1
-    memory '30 GB'
+
+    label 'half'
+
     errorStrategy 'retry'
     maxErrors 1
 
     tag "$mapping"
+
     publishDir "$params.outdir/0_alignedReads", mode: 'move', overwrite: 'true', pattern: "{*.stats}"
 
     input:
@@ -86,10 +93,12 @@ process PROCESS_SAM {
     """
 }
 
+//> Remove Duplicate Reads
+//* with picard MarkDuplicates, included in gatk
 process MARK_DUPLICATES {
     container 'broadinstitute/gatk:4.6.0.0'
-    maxForks 3
-    memory '10 GB'
+
+    label 'third'
 
     tag "$in_file"
 
@@ -108,10 +117,12 @@ process MARK_DUPLICATES {
     """
 }
 
+//> Convert BAM in BED File Format
+//* using bedtools
 process BAM_TO_BED {
     container 'pegi3s/bedtools:2.31.0'
-    maxForks 3
-    memory '30 GB'
+
+    label 'third'
 
     tag "$bam_file"
 
@@ -127,23 +138,25 @@ process BAM_TO_BED {
     """
     bedtools bamtobed -i "${bam_file}" > "${bam_file.simpleName}.bed"
     """
-
 }
 
 //> PEAK CALLING
+//* using macs2
 process PEAK_CALLING {
     container 'community.wave.seqera.io/library/macs2:2.2.9.1--37875900d3e7f01c'
 
-    publishDir "$params.outdir/1_Peaks/", mode: 'copy', overwrite: 'true'
+    label 'third'
 
     tag "${bed_file.simpleName}"
+
+    publishDir "$params.outdir/1_Peaks/", mode: 'copy', overwrite: 'true'
 
     input:
     path bed_file
 
     output:
     tuple val("${bed_file.simpleName}"), path("${bed_file.simpleName}/NA_summits.bed"), emit: summit
-    path "${bed_file.simpleName}", emit: macs2
+    path "${bed_file.simpleName}/NA_peaks.narrowPeak", emit: narrowPeaks
 
     script:
     """
@@ -153,8 +166,12 @@ process PEAK_CALLING {
 }
 
 //> Annotation
+//* using annotatePeaks.pl from HOMER
 process ANNOTATE {
     container 'atacseq:1.0'
+
+    label 'third'
+
     tag "$sample"
 
     publishDir "$params.outdir/2_PeakAnnotation", mode: 'copy', overwrite: 'true'
@@ -172,16 +189,17 @@ process ANNOTATE {
     """
 }
 
-//> Filtering NarrowPeaks
+//> Filter NarrowPeaks
+//* filter out peaks without any valid annotation
 process FILTER_NARROWPEAKS {
     container 'atacseq:1.0'
-    maxForks 2
-    memory '15 GB'
 
-    tag "$macs2"
+    label 'half'
+
+    tag "$narrowPeaks"
 
     input:
-    path macs2
+    path narrowPeaks
     path annotation
 
     output:
@@ -190,16 +208,17 @@ process FILTER_NARROWPEAKS {
     script:
     """
     awk -F'\\t' '\$10 != "NA"' ${annotation} > "${annotation.simpleName}_filtered.csv"
-    filter_peaks.py --annotation ${annotation.simpleName}_filtered.csv --input "$macs2/NA_peaks.narrowPeak" --output "${annotation.simpleName}.narrowPeak"
+    filter_peaks.py --annotation ${annotation.simpleName}_filtered.csv --input "$narrowPeaks" --output "${annotation.simpleName}.narrowPeak"
     cut -f 1-6 ${annotation.simpleName}.narrowPeak > ${annotation.simpleName}.bed
     """
 }
 
 //> de novo Pnr motif search
+//* Generate de novo Pnr-motif using ChIP-chip data
 process GENERATE_MOTIF {
     container 'atacseq:1.0'
-    maxForks 1
-    memory '30 GB'
+    
+    label 'half'
 
     tag "$bed_file"
 
@@ -218,10 +237,12 @@ process GENERATE_MOTIF {
     """
 }
 
+//> Merge all Peak Files
+//* into one .bed file
 process MERGE_PEAKS {
     container 'pegi3s/bedtools:2.31.0'
-    maxForks 1
-    memory '30 GB'
+
+    label 'half'
 
     tag "$filtered_peaks_bed"
 
@@ -239,10 +260,12 @@ process MERGE_PEAKS {
     """
 }
 
+//> Find Pnr-Motif in Peaks
+//* using findMotifsGenome.pl from HOMER
 process FIND_MOTIF {
     container 'atacseq:1.0'
-    maxForks 2
-    memory '15 GB'
+
+    label 'half'
 
     tag "$motif"
 
@@ -278,10 +301,12 @@ process FIND_MOTIF {
     """
 }
 
+//> Annotate Peaks containig Pnr-Motif
+//* Annotate Peaks to dm6 ref genome
 process ANNOTATE_PNR_PEAKS {
     container 'atacseq:1.0'
-    maxForks 1
-    memory '30 GB'
+    
+    label 'half'
 
     publishDir "$params.outdir/4_Peaks-Pnr-Annotation", mode: 'copy', overwrite: 'true'
     
@@ -291,62 +316,63 @@ process ANNOTATE_PNR_PEAKS {
 
     output:
     path "pnrPeaks_annotation.csv"          , emit: annotation
-    path "pnrPeaks_annotation_onlyGenes.txt", emit: gene_list
 
     script:
     """
     cat ${summits_bed} > tmp.bed
     annotatePeaks.pl tmp.bed dm6 -gtf $gtf > pnrPeaks_annotation_tmp.csv
     { head -n 1 pnrPeaks_annotation_tmp.csv && tail -n +2 pnrPeaks_annotation_tmp.csv | sort -t\$'\\t' -k12,12; } > pnrPeaks_annotation.csv
-    cut -f 12 pnrPeaks_annotation.csv > pnrPeaks_annotation_onlyGenes.txt
-    sed -i '/^\$/d' pnrPeaks_annotation_onlyGenes.txt
     """
 }
 
+//> Get significant Genes
+//* significant = genes appear certain amount of time (here: 10)
 process GET_SIGNIFICANT_GENES {
     container 'atacseq:1.0'
-    maxForks 1
-    memory '30 GB'
+    
+    label 'half'
 
+    publishDir "$params.outdir/4_Peaks-Pnr-Annotation", mode: 'copy', overwrite: 'true', pattern: "{all_genes.txt}"
     publishDir "$params.outdir/5_SignificantGenes", mode: 'move', overwrite: 'true'
 
     input:
-    path gene_list
     path annotation
+    val count
 
     output:
+    path("all_genes.txt")
     path("significant_genes.txt")
 
     script:
     """
-    significant_genes.py --genes $gene_list --annotation $annotation --outname significant_genes.txt --count 10
+    cut -f 12 $annotation > all_genes.txt
+    sed -i '/^\$/d' all_genes.txt
+    significant_genes.py --genes all_genes.txt --annotation $annotation --outname significant_genes.txt --count $count
     """
 }
 
-//!!!!!!!!!!!!!!!!!!!!!!!!
-//!     WORKFLOW
-//!!!!!!!!!!!!!!!!!!!!!!!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//!!!            WORKFLOW            !!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 workflow {
     //> Alignment / Mapping
     genome = file(params.genome)                        // get genome file from path
+    //? execute only if parameter --align is set via CLI on execution
     if (params.align) {
-        bowtie_index = BOWTIE2_BUILD(genome)            // build bowtie index from transcriptome
+        bowtie_index = BOWTIE2_BUILD(genome)            // build bowtie index from genome
+
         reads = Channel.fromPath(params.reads)          // get reads from path
-        bowtie_output = BOWTIE2_ALIGN(reads, bowtie_index).mapping         // Alignment
-                                                            | collect
-                                                            | flatten
-                                                            | collate( 2 )
+        bowtie_output = BOWTIE2_ALIGN(reads, bowtie_index).mapping          // Alignment
+                                                            | collect       // collect all Outputs in a list
+                                                            | flatten       // separate each entry
+                                                            | collate( 2 )  // publish two consecutive entry at a time to following process
 
-        // bed_file = PROCESS_SAM(bowtie_output).bed_file 
-        //                                        | collect
-        //                                        | flatten
-
-        bam_file = PROCESS_SAM(bowtie_output).bam_file
-        rmD_bam_file = MARK_DUPLICATES(bam_file).bam_file
-        bed_file = BAM_TO_BED(rmD_bam_file).bed_file 
-                                               | collect
-                                               | flatten
+        bam_file = PROCESS_SAM(bowtie_output).bam_file      // Convert SAM to BAM and process
+        rmD_bam_file = MARK_DUPLICATES(bam_file).bam_file   // Remove Duplicate Reads
+        bed_file = BAM_TO_BED(rmD_bam_file).bed_file        // Convert BAM Files to BED
+                                               | collect    // collect all Outputs in a list
+                                               | flatten    // publish each item separatly to next process
         
     } else {
         // if alignment is skipped, get read count data from results-path
@@ -354,29 +380,38 @@ workflow {
 
     }
 
+    //> Peak Calling
+    gtf = file(params.gtf)                              // get gtf reference from path
+    //? execute only if parameter --peakcalling is set via CLI on execution
+    if (params.peakcalling) { 
+        summit_bed = PEAK_CALLING(bed_file).summit      // Call Peaks; (1) return bed file
+        narrowPeaks = PEAK_CALLING.out.narrowPeaks      // (2) return narrowPeaks file
+
+        annotation = ANNOTATE(summit_bed, gtf)          // Annotate bed files
+
+        filtered_peaks = FILTER_NARROWPEAKS(narrowPeaks, annotation).filtered_peaks // filter out peaks without valid annotation
+                                                                | collect   // collect all Outputs in a list
+    }
+
+    //> de novo Pnr-Motif
+    //? execute only if parameter --pnrmotif is set via CLI on execution
     if (params.pnrmotif) {
-        bed_files = Channel.fromPath(params.chip)
-        GENERATE_MOTIF(bed_files)
+        bed_files = Channel.fromPath(params.chip)       // get ChIP-Chip files from path
+        GENERATE_MOTIF(bed_files)                       // generate de novo Pnr-Motif
     }
 
-    gtf = file(params.gtf)
-    if (params.peakcalling) {
-        summit_bed = PEAK_CALLING(bed_file).summit
-        macs2 = PEAK_CALLING.out.macs2
-        annotation = ANNOTATE(summit_bed, gtf)
-        filtered_peaks = FILTER_NARROWPEAKS(macs2, annotation).filtered_peaks
-                                                                | collect
-    }
-
+    //> Find Pnr-Motif in Peaks
+    //? execute only if parameter --motif is set via CLI on execution
     if (params.motif) {
-        pnr_motif = file(params.pnr_motif)
-        opt_motif = Channel.fromPath(params.pnr_motif_opt).collect()
-        merged_peaks = MERGE_PEAKS(filtered_peaks)
-        bed_file = FIND_MOTIF(merged_peaks, genome, pnr_motif, opt_motif).bed_file.collect()
+        merged_peaks = MERGE_PEAKS(filtered_peaks)                   // merge all Peak Files into one
 
-        pnr_annotation = ANNOTATE_PNR_PEAKS(bed_file, gtf).annotation
-        gene_list = ANNOTATE_PNR_PEAKS.out.gene_list
+        pnr_motif = file(params.pnr_motif)                           // get selected Pnr-Motif
+        opt_motif = Channel.fromPath(params.pnr_motif_opt).collect() // get more selected Pnr-Motif
+        bed_file = FIND_MOTIF(merged_peaks, genome, pnr_motif, opt_motif).bed_file.collect() // find Pnr-Motif in those Peaks
 
-        GET_SIGNIFICANT_GENES(gene_list, pnr_annotation)
+        pnr_annotation = ANNOTATE_PNR_PEAKS(bed_file, gtf).annotation // Annotate Peaks with Pnr-Motif
+
+        num_of_appearances = 10                                   // Define how many reads are mandatory to call a gen significant
+        GET_SIGNIFICANT_GENES(pnr_annotation, num_of_appearances) // Get significant genes
     }
 }
