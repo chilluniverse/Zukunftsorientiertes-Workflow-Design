@@ -359,7 +359,7 @@ workflow {
     //> Alignment / Mapping
     genome = file(params.genome)                        // get genome file from path
     //? execute only if parameter --align is set via CLI on execution
-    if (params.align) {
+    if ( params.align ) {
         bowtie_index = BOWTIE2_BUILD(genome)            // build bowtie index from genome
 
         reads = Channel.fromPath(params.reads)          // get reads from path
@@ -383,7 +383,7 @@ workflow {
     //> Peak Calling
     gtf = file(params.gtf)                              // get gtf reference from path
     //? execute only if parameter --peakcalling is set via CLI on execution
-    if (params.peakcalling) { 
+    if ( params.peakcalling ||  params.motif ) { 
         summit_bed = PEAK_CALLING(bed_file).summit      // Call Peaks; (1) return bed file
         narrowPeaks = PEAK_CALLING.out.narrowPeaks      // (2) return narrowPeaks file
 
@@ -395,14 +395,14 @@ workflow {
 
     //> de novo Pnr-Motif
     //? execute only if parameter --pnrmotif is set via CLI on execution
-    if (params.pnrmotif) {
+    if ( params.pnrmotif ) {
         bed_files = Channel.fromPath(params.chip)       // get ChIP-Chip files from path
         GENERATE_MOTIF(bed_files)                       // generate de novo Pnr-Motif
     }
 
     //> Find Pnr-Motif in Peaks
     //? execute only if parameter --motif is set via CLI on execution
-    if (params.motif) {
+    if ( params.motif ) {
         merged_peaks = MERGE_PEAKS(filtered_peaks)                   // merge all Peak Files into one
 
         pnr_motif = file(params.pnr_motif)                           // get selected Pnr-Motif
