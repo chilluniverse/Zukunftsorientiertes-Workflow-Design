@@ -21,7 +21,7 @@ process READS {
 
     tag "$rename"
 
-    publishDir "$params.data_path/$path", mode: 'move', overwrite: 'true'
+    publishDir "$params.data_path/fasta/$path", mode: 'move', overwrite: 'true'
 
     input:
     tuple val(run), val(rename), val(path)
@@ -142,5 +142,9 @@ workflow {
     download_file.map{ row -> tuple(row.run, row.rename, row.path) } | READS
 
     docker = Channel.fromPath(params.docker, type: 'dir')
-    BUILD_CONTAINER(docker) | view
+
+    params.noDocker = false
+    if ( !params.noDocker ) {
+        BUILD_CONTAINER(docker) | view
+    }
 }
