@@ -1,0 +1,41 @@
+# Datenstruktur
+
+```plain
+└── zukunftsorientiertes-workflow-design
+    └── bin
+        └── build_matrix.py
+        └── coseq_go.py
+        └── filter_peaks.py
+        └── RNA-seq.r
+        └── significant_genes.py
+    └── data
+        └── fasta
+            └── ATACseq
+                └── dmau
+                    └── dmau_SraRunTable.txt
+                    └── dmau_SRR_Acc_List.txt
+                └── dmel
+                    └── dmel_SraRunTable.txt
+                    └── dmel_SRR_Acc_List.txt
+            └── RNAseq
+                └── dmau
+                    └── dmau_SraRunTable.txt
+                    └── dmau_SRR_Acc_List.txt
+                └── dmel
+                    └── dmel_SraRunTable.txt
+                    └── dmel_SRR_Acc_List.txt
+            └── SRA_Download.csv
+        └── pnr-motif
+            └── optional
+    └── Docker
+        └── ATACseq
+            └── Dockerfile
+        └── RNAseq
+            └── Dockerfile
+    └── .gitignore
+    └── ATACseq.nf
+    └── DownloadData.nf
+    └── nextflow.config
+    └── README.md
+    └── RNAseq.nf
+```
