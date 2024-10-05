@@ -26,9 +26,10 @@ Für diese Pipelines wird folgende Hardware als Mindestanforderung empfohlen:
 - Öffne das Repository im Terminal
 - Bevor Piplines ausgeführt werden können, müssen die zur Verfügung stehenden Ressourcen des Systems in der Konfigurationsdatei `nextflow.config`angepasst werden. Standardmäßig sind die oben genannten Systemanforderungen eingetragen.
 
-### 2. Download der Daten
+### 2. Daten-Download, Docker Container
 
-- Um die benötigten Daten herunterzuladen, steht eine eigene Pipeline zur Verfügung. Diese kann mittels `nextflow run DownloadData.nf` aufgerufen werden. Die Daten werden in einer vordefinierten Datenstruktur für die RNAseq- und ATACseq-Pipelines gespeichert. Weitere Informationen zu Parametern finden sich hier.
+Um die benötigten Daten herunterzuladen, steht eine eigene Pipeline zur Verfügung. Diese kann mittels `nextflow run DownloadData.nf` aufgerufen werden. Die Daten werden in einer vordefinierten Datenstruktur für die RNAseq- und ATACseq-Pipelines gespeichert. Die von den Pipelines benötigten Docker Container `atacseq:1.0` und `rnaseq:1.0` werden ebenfalls hiermit gebaut.
+Weitere Informationen zu Parametern finden sich hier.
 
 ### 3. RNAseq Pipeline
 
@@ -64,6 +65,9 @@ Params:
                 Referenz Genom für die ATACseq Analyse im GTF Format
 --chip          ["link.to/bigwig/chip1","link.to/bigwig/chip1"] (default: ["http://furlonglab.embl.de/labData/publications/2012/Junion-et-al-2012_Cell/signal_files/Pnr_4-6h_allIPvsallM_log2ratio_5probes-smoothed_Junion2012.bigwig", "http://furlonglab.embl.de/labData/publications/2012/Junion-et-al-2012_Cell/signal_files/Pnr_6-8h_allIPvsallM_log2ratio_5probes-smoothed_Junion2012.bigwig"])
                 Link Liste zu ChIP-Chip Daten
+--docker        "/path/to/docker/folders/*/" (default: "$baseDir/docker/*/")
+                Absoluter Pfad von Ordnern, die Dockerfile enthalten.
+--noDocker      Wenn gesetzt, werden Docker Container nicht gebaut.
 ```
 
 ### RNAseq.nf
