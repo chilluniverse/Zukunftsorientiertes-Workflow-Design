@@ -8,6 +8,7 @@ params.rna_ref = "https://ftp.flybase.org/genomes/dmel/dmel_r6.54_FB2023_05/fast
 params.atac_ref = "https://ftp.flybase.org/genomes/dmel/dmel_r6.54_FB2023_05/fasta/dmel-all-chromosome-r6.54.fasta.gz"
 params.atac_gtf = "http://ftp.flybase.net/genomes/Drosophila_melanogaster/dmel_r6.54_FB2023_05/gtf/dmel-all-r6.54.gtf.gz"
 params.chip = ["http://furlonglab.embl.de/labData/publications/2012/Junion-et-al-2012_Cell/signal_files/Pnr_4-6h_allIPvsallM_log2ratio_5probes-smoothed_Junion2012.bigwig", "http://furlonglab.embl.de/labData/publications/2012/Junion-et-al-2012_Cell/signal_files/Pnr_6-8h_allIPvsallM_log2ratio_5probes-smoothed_Junion2012.bigwig"]
+params.docker = "$baseDir/docker/*/"
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            PROCESSES            !!!
@@ -106,6 +107,22 @@ process CHIP_CHIP {
     """
 }
 
+//> Build Docker Container
+//* with dependencies that are not available as containers 
+process BUILD_CONTAINER {
+    input:
+    path folder
+
+    output:
+    stdout
+
+    script:
+    """
+    name=$folder
+    docker buildx build -t \${name,,}:1.0 $folder
+    """   
+}
+
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            WORKFLOW            !!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -123,4 +140,7 @@ workflow {
                         .splitCsv(header: true)
 
     download_file.map{ row -> tuple(row.run, row.rename, row.path) } | READS
+
+    docker = Channel.fromPath(params.docker, type: 'dir')
+    BUILD_CONTAINER(docker) | view
 }
