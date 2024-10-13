@@ -1,10 +1,9 @@
-# Basis-Image auswählen (hier ein Ubuntu-Image)
+# Import Base Image
 FROM ubuntu:20.04
 
-# Umgebungsvariablen setzen
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Notwendige Pakete installieren
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
@@ -22,20 +21,18 @@ RUN apt-get update && apt-get install -y \
     git \
     && apt-get clean
 
-# Arbeitsverzeichnis setzen
+# Set Work Directory
 WORKDIR /data
 
-# HOMER herunterladen und entpacken
+# Download HOMER and install
 RUN wget http://homer.ucsd.edu/homer/configureHomer.pl \
     && perl configureHomer.pl -install
 
-# HOMER in den Pfad aufnehmen
+# add HOMER to PATH
 ENV PATH="$PATH:/data/bin"
 
-
-# Das dm6-Paket (Drosophila melanogaster) installieren
+# Install dm3 and dm6 for HOMER
 RUN perl configureHomer.pl -install dm3
 RUN perl configureHomer.pl -install dm6
 
-# Standard-Kommando setzen
 CMD ["/bin/bash"]

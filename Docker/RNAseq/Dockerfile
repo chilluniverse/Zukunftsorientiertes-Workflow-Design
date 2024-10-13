@@ -1,6 +1,7 @@
-# Basis-Image: Verwende ein Ubuntu-Image
+# Import Base Image
 FROM continuumio/anaconda3:2024.06-1
 
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
@@ -39,25 +40,24 @@ RUN apt-get update && apt-get install -y \
     r-base \
     && apt-get clean
 
+# update conda and add additional channels
 RUN conda update -n base -c defaults conda
 RUN conda config --add channels anaconda
 RUN conda config --add channels conda-forge
 RUN conda config --add channels bioconda
 
-# Installation von Python-Paketen
+# install python packages
 RUN conda install -y conda-forge::pandas=2.2.3
 
-# Installation von R-Paketen, inkl. ggplot2 Version 3.5.1
+# install R packages
 RUN conda install -y conda-forge::r-ggplot2=3.5.1
 RUN conda install -y conda-forge::r-biocmanager=1.30.25
 RUN conda install -y bioconda::bioconductor-deseq2=1.42.0
 RUN conda install -y bioconda::bioconductor-coseq=1.26.0
 
-# Cleanup unnötiger Dateien
 RUN conda clean --all -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Standard-Arbeitsverzeichnis
+# Set Work Directory
 WORKDIR /data
 
-# Kommando für den Start
 CMD ["/bin/bash"]
