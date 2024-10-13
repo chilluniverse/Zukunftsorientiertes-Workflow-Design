@@ -6,6 +6,7 @@ Dieses Projekt soll zeigen mit welchen Mitteln ein Analyse-Workflow einer wissen
 ## Wie benutze ich die Pipelines?
 
 ### Systemanforderungen
+
 Für diese Pipelines wird folgende Hardware als Mindestanforderung empfohlen:
 
 - 8-Core 3 GHz CPU mit Multithreading (besser: 12 Core 4GHz)
@@ -22,6 +23,8 @@ Für diese Pipelines wird folgende Hardware als Mindestanforderung empfohlen:
 ### 1. Vorbereitung
 
 - Installiere alle genannten Abhängigkeiten
+  - Conda: Füge die Channels `conda-forge` und `bioconda` hinzu
+  - Docker: Nextflow muss auf Docker auch ohne sudo zugreifen können
 - Klone dieses Repository
 - Öffne das Repository im Terminal
 - Bevor Piplines ausgeführt werden können, müssen die zur Verfügung stehenden Ressourcen des Systems in der Konfigurationsdatei `nextflow.config`angepasst werden. Standardmäßig sind die oben genannten Systemanforderungen eingetragen.
@@ -111,7 +114,9 @@ Params:
 --outdir        "/path/to/results" (default: "$baseDir/data/results/ATACseq")
                 Absoluter Dateipfad in dem Resultate gespeichert werden sollen
 ```
+
 ## Syntax SRA_Download.csv
+
 In der Datei `/data/fasta/SRA_Download.cs` wird definiert, welche Daten von SRA heruntergeladen werden, mit welchem Dateinamen und unter welchem Dateipfad sie jeweils gespeichert werden. Dabei ist der Dateipfad relativ zum Parameter `data_path`. Des weiteren ist einer Syntax für `rename` vorgesehen mit folgender Belegung:
 
 ```bash
@@ -124,6 +129,7 @@ In der Datei `/data/fasta/SRA_Download.cs` wird definiert, welche Daten von SRA 
 Bei Abweichung von dieser Syntax, muss das R Script `RNA-seq.r` entsprechend angepasst werden.
 
 **SRA_Download.csv**
+
 ```plist
 run,rename,path
 SRR12744924,dmau_120h_B,/ATACseq/dmau
@@ -143,4 +149,4 @@ SRR12744928,dmau_96h_A,/ATACseq/dmau
 >
 > [4] P. Di Tommaso, et al. **Nextﬂow enables reproducible computational workﬂows.** Nature Biotechnology, 35(4) :316–319, April 2017. doi:[10.1038/nbt.3820](http://www.nature.com/nbt/journal/v35/n4/full/nbt.3820.html)
 >
-> [5] Docker Inc. **Install Docker Engine.** url:https://docs.docker.com/engine/install/ [zugegriﬀen am 03-10-2024]]
+> [5] Docker Inc. **Install Docker Engine.** url:https://docs.docker.com/engine/install/ [zugegriﬀen am 03-10-2024]
