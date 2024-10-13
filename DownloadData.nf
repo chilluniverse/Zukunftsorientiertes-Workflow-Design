@@ -17,7 +17,7 @@ params.docker = "$baseDir/docker/*/"
 //> Download Read from SRA
 //* and save with simple file name
 process READS {
-    conda 'bioconda::sra-tools'
+    conda 'bioconda::sra-tools=3.1.1 conda-forge::ossuuid=1.6.2'
 
     tag "$rename"
 
