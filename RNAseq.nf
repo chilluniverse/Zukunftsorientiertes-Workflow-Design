@@ -5,11 +5,9 @@ params.genome = "$baseDir/data/references/RNAseq/*.fasta"    // transcriptome re
 params.reads = "$baseDir/data/fasta/RNAseq/**/*.fasta"       // fasta raw sequences
 params.outdir = "$baseDir/data/results/RNAseq"               // output directory
 
-
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            PROCESSES            !!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 //> Build Bowtie2 Index
 //* in preparation for Alignment with Bowtie2
 process BOWTIE2_BUILD {
@@ -75,15 +73,10 @@ process PROCESS_SAM {
 
     """
     mkdir samtools
-
     samtools view       -@ ${params.max_cpus} -Sb ${sam_file.simpleName}.sam -o ${sam_file.simpleName}.bam
-
     samtools sort       -@ ${params.max_cpus} -m 1300M --output-fmt bam --output-fmt-option nthreads=${params.max_cpus} -o ${sam_file.simpleName}.sorted.bam "${sam_file.simpleName}.bam"
-
     samtools index      -@ ${params.max_cpus} ${sam_file.simpleName}.sorted.bam -o ${sam_file.simpleName}.sorted.bam.bai
-
     samtools idxstats   -@ ${params.max_cpus} -X ${sam_file.simpleName}.sorted.bam ${sam_file.simpleName}.sorted.bam.bai &> ${sam_file.simpleName}.sorted.bam.tsv
-
     samtools stats      -@ ${params.max_cpus} ${sam_file.simpleName}.bam &> ${sam_file.simpleName}.bam.stats
     """
 }
@@ -192,7 +185,6 @@ process EXTRACT_CLUSTER {
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            WORKFLOW            !!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 workflow {
     //> Alignment / Mapping
     //? execute only if parameter --align is set via CLI on execution
@@ -207,8 +199,7 @@ workflow {
 
         read_count = PROCESS_SAM(bowtie_output).read_count      // Process SAM Files
                                                | collect(flat: false) // collect all Outputs in a list
-    } else {
-        // if alignment is skipped, get read count data from results-path
+    } else {// if alignment is skipped, get read count data from results-path
         read_count = Channel.fromPath("${params.outdir}/0_alignedReads/**/*.sorted.bam.tsv").collect(flat: false) 
     }
 

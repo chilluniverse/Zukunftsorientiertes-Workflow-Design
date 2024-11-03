@@ -108,7 +108,7 @@ process CHIP_CHIP {
 }
 
 //> Build Docker Container
-//* with dependencies that are not available as containers 
+//* with dependencies that are not available as containers
 process BUILD_CONTAINER {
     input:
     path folder
@@ -120,7 +120,7 @@ process BUILD_CONTAINER {
     """
     name=$folder
     docker buildx build -t \${name,,}:1.0 $folder
-    """   
+    """
 }
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -128,7 +128,6 @@ process BUILD_CONTAINER {
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 workflow {
-
     CHIP_CHIP(Channel.fromList(params.chip))
 
     REFERENCE_RNA(params.rna_ref)

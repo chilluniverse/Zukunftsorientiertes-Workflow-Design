@@ -27,7 +27,7 @@ def get_PeakID(file_name):
         next(csvreader) # skip header row
         for row in csvreader:
             PeakID.append(row[0].split("-")[0])
-    
+
     return set(PeakID)
 
 #> Read in *.narrowPeak file and filter out all lines without valid annotation
@@ -48,16 +48,15 @@ def write_Peaks(file_name, peaks):
                 file.write(str(item))
                 file.write('\t')
             file.write('\n')
-            
-            
-#- main method        
+
+#- main method
 def main():
     args = parse_arguments()
-    
+
     annotation_file = args.path + args.annotation
     peak_file = args.path + args.input
     filtered_peaks = args.path +args.output
-    
+
     PeakID = get_PeakID(annotation_file)
     peaks = filter_Peaks(peak_file, PeakID)
     write_Peaks(filtered_peaks, peaks)

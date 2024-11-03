@@ -8,13 +8,11 @@ params.reads = "$baseDir/data/fasta/ATACseq/**/*.fasta"           // fasta raw s
 params.chip = "$baseDir/data/fasta/ChIP-chip/*.bed"               // ChIP-chip bed-files
 params.pnr_motif = "$baseDir/data/pnr-motif/*.motif"              // Pnr-motif
 params.pnr_motif_opt = "$baseDir/data/pnr-motif/optional/*.motif" // Optional Pnr-motif(s)
-
 params.outdir = "$baseDir/data/results/ATACseq"                   // output directory
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            PROCESSES            !!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 //> Build Bowtie2 Index
 //* in preparation for Alignment with Bowtie2
 process BOWTIE2_BUILD {
@@ -175,7 +173,7 @@ process ANNOTATE {
     tag "$sample"
 
     publishDir "$params.outdir/2_PeakAnnotation", mode: 'copy', overwrite: 'true'
-    
+
     input:
     tuple val(sample), path(summits_bed)
     path gtf
@@ -217,7 +215,7 @@ process FILTER_NARROWPEAKS {
 //* Generate de novo Pnr-motif using ChIP-chip data
 process GENERATE_MOTIF {
     container 'atacseq:1.0'
-    
+
     label 'half'
 
     tag "$bed_file"
@@ -305,11 +303,11 @@ process FIND_MOTIF {
 //* Annotate Peaks to dm6 ref genome
 process ANNOTATE_PNR_PEAKS {
     container 'atacseq:1.0'
-    
+
     label 'half'
 
     publishDir "$params.outdir/4_Peaks-Pnr-Annotation", mode: 'copy', overwrite: 'true'
-    
+
     input:
     path(summits_bed)
     path gtf
@@ -329,7 +327,7 @@ process ANNOTATE_PNR_PEAKS {
 //* significant = genes appear certain amount of time (here: 10)
 process GET_SIGNIFICANT_GENES {
     container 'atacseq:1.0'
-    
+
     label 'half'
 
     publishDir "$params.outdir/4_Peaks-Pnr-Annotation", mode: 'copy', overwrite: 'true', pattern: "{all_genes.txt}"
@@ -354,7 +352,6 @@ process GET_SIGNIFICANT_GENES {
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!            WORKFLOW            !!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 workflow {
     //> Alignment / Mapping
     genome = file(params.genome)                        // get genome file from path
@@ -373,17 +370,16 @@ workflow {
         bed_file = BAM_TO_BED(rmD_bam_file).bed_file        // Convert BAM Files to BED
                                                | collect    // collect all Outputs in a list
                                                | flatten    // publish each item separatly to next process
-        
+
     } else {
         // if alignment is skipped, get read count data from results-path
         bed_file = Channel.fromPath("${params.outdir}/0_alignedReads/**/*.bed")
-
     }
 
     //> Peak Calling
     gtf = file(params.gtf)                              // get gtf reference from path
     //? execute only if parameter --peakcalling is set via CLI on execution
-    if ( params.peakcalling ||  params.motif ) { 
+    if ( params.peakcalling ||  params.motif ) {
         summit_bed = PEAK_CALLING(bed_file).summit      // Call Peaks; (1) return bed file
         narrowPeaks = PEAK_CALLING.out.narrowPeaks      // (2) return narrowPeaks file
 

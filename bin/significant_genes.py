@@ -24,7 +24,7 @@ def parse_arguments():
 #? read in all genes given in text file and return it as a dict; gene names := key
 def get_gene_names(filepath):
     dict = {}                                       # create dictionary dict
-    
+
     with open(filepath, 'r') as file:               # Open the file
         lines = file.readlines()                    # and save each line in list
 
@@ -32,7 +32,7 @@ def get_gene_names(filepath):
         line = line.strip()                         # strip whitespaces/new line chars
         if line and line.startswith("FBgn"):        # If the line /= empty and is a gene, add it to the dictionary (init with 0 as count) and list
             dict[line] = 0
-            
+
     return dict
 
 #> Count all apperances of the genes in all annoations
@@ -54,7 +54,7 @@ def filter_apperance(count, gene_count):
     # Discard key and value from dictionary if value is smaller then value of variable "count"?
     dict = {key: value for key, value in gene_count.items() if value >= count}
     return dict
-            
+
 def write_genes(path, gene_count, outname):
     # Write keys of dictionary to file?
     file = open(path + outname, "w")
@@ -69,13 +69,10 @@ def main():
     gene_counts = get_gene_names(gene_list_file)
     gene_counts = count_genes(args.path, args.annotation, gene_counts)
     gene_counts = filter_apperance(args.count, gene_counts)
-    
+
     write_genes(args.path, gene_counts, args.outname)
-    
+
     print(len(gene_counts))
-    
-
-
 
 if __name__ == '__main__':
     main()
